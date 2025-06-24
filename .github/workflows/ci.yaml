@@ -67,44 +67,60 @@ jobs:
         echo "Verifying MongoDB is accessible..."
         nc -z localhost 27017 && echo "MongoDB port is accessible" || exit 1
 
+    - name: Create test database user
+      run: |
+        echo "Creating test database user..."
+        docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username root --password example --authenticationDatabase admin --eval "
+          use testdb;
+          db.createUser({
+            user: 'testuser',
+            pwd: 'testpass',
+            roles: [
+              { role: 'readWrite', db: 'testdb' },
+              { role: 'dbAdmin', db: 'testdb' }
+            ]
+          });
+          db.runCommand({ connectionStatus: 1 });
+        "
+
     - name: Run unit tests
       env:
         MONGODB_HOST: localhost
         MONGODB_PORT: 27017
-        MONGODB_USERNAME: root
-        MONGODB_PASSWORD: example
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
         MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: admin
+        MONGODB_AUTH_DATABASE: testdb
       run: go test -v -race -short $(go list ./... | grep -v '/examples/')
 
     - name: Test environment variable loading (go-env v1.0.1)
       env:
         MONGODB_HOST: localhost
         MONGODB_PORT: 27017
-        MONGODB_USERNAME: root
-        MONGODB_PASSWORD: example
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
         MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: admin
+        MONGODB_AUTH_DATABASE: testdb
       run: go test -v -run TestEnvironmentBindingDebugging
 
     - name: Run integration tests
       env:
         MONGODB_HOST: localhost
         MONGODB_PORT: 27017
-        MONGODB_USERNAME: root
-        MONGODB_PASSWORD: example
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
         MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: admin
+        MONGODB_AUTH_DATABASE: testdb
       run: go test -v -race $(go list ./... | grep -v '/examples/')
 
     - name: Run tests with coverage
       env:
         MONGODB_HOST: localhost
         MONGODB_PORT: 27017
-        MONGODB_USERNAME: root
-        MONGODB_PASSWORD: example
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
         MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: admin
+        MONGODB_AUTH_DATABASE: testdb
       run: go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v '/examples/')
 
     - name: Upload coverage to Codecov

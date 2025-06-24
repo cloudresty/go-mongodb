@@ -14,8 +14,8 @@ jobs:
       mongodb:
         image: mongo:8
         env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: example
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password
         ports:
           - 27017:27017
 
@@ -70,7 +70,7 @@ jobs:
     - name: Create test database user
       run: |
         echo "Creating test database user..."
-        docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username root --password example --authenticationDatabase admin --eval "
+        docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username admin --password password --authenticationDatabase admin --eval "
           use testdb;
           db.createUser({
             user: 'testuser',

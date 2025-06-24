@@ -25,10 +25,22 @@ tidy: ## Tidy go modules
 test: ## Run unit tests
 	go test -v -race -short ./...
 
-test-integration: ## Run integration tests (requires MongoDB)
+test-integration: ## Run integration tests (requires MongoDB with test user)
+	MONGODB_HOST=localhost \
+	MONGODB_PORT=27017 \
+	MONGODB_USERNAME=testuser \
+	MONGODB_PASSWORD=testpass \
+	MONGODB_DATABASE=testdb \
+	MONGODB_AUTH_DATABASE=testdb \
 	go test -v -race ./...
 
 test-coverage: ## Run tests with coverage
+	MONGODB_HOST=localhost \
+	MONGODB_PORT=27017 \
+	MONGODB_USERNAME=testuser \
+	MONGODB_PASSWORD=testpass \
+	MONGODB_DATABASE=testdb \
+	MONGODB_AUTH_DATABASE=testdb \
 	go test -v -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
@@ -52,6 +64,26 @@ docker-mongodb: ## Start MongoDB in Docker
 		-e MONGO_INITDB_ROOT_USERNAME=admin \
 		-e MONGO_INITDB_ROOT_PASSWORD=password \
 		mongo:8
+
+docker-setup-test-user: ## Create test database user (run after docker-mongodb)
+	@echo "Waiting for MongoDB to be ready..."
+	@timeout 60 bash -c 'until nc -z localhost 27017; do sleep 1; done' || (echo "MongoDB not ready" && exit 1)
+	@sleep 5
+	@echo "Creating test database user..."
+	docker exec mongodb-dev mongosh --username admin --password password --authenticationDatabase admin --eval " \
+		use testdb; \
+		db.createUser({ \
+			user: 'testuser', \
+			pwd: 'testpass', \
+			roles: [ \
+				{ role: 'readWrite', db: 'testdb' }, \
+				{ role: 'dbAdmin', db: 'testdb' } \
+			] \
+		}); \
+		db.runCommand({ connectionStatus: 1 }); \
+	"
+
+docker-mongodb-full: docker-mongodb docker-setup-test-user ## Start MongoDB and create test user
 
 docker-stop: ## Stop MongoDB Docker container
 	docker stop mongodb-dev || true
@@ -90,6 +122,8 @@ bench: ## Run benchmarks
 
 # All tests
 test-all: test test-integration bench ## Run all tests including benchmarks
+
+test-local: docker-stop docker-mongodb-full test-integration ## Setup local MongoDB and run integration tests
 
 # Documentation
 docs: ## Generate documentation

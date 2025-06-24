@@ -71,13 +71,15 @@ jobs:
       run: |
         echo "Creating test database user..."
         docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username admin --password password --authenticationDatabase admin --eval "
-          use testdb;
+          use admin;
           db.createUser({
             user: 'testuser',
             pwd: 'testpass',
             roles: [
               { role: 'readWrite', db: 'testdb' },
-              { role: 'dbAdmin', db: 'testdb' }
+              { role: 'dbAdmin', db: 'testdb' },
+              { role: 'readWrite', db: 'app' },
+              { role: 'dbAdmin', db: 'app' }
             ]
           });
           db.runCommand({ connectionStatus: 1 });
@@ -90,18 +92,7 @@ jobs:
         MONGODB_USERNAME: testuser
         MONGODB_PASSWORD: testpass
         MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: testdb
       run: go test -v -race -short $(go list ./... | grep -v '/examples/')
-
-    - name: Test environment variable loading (go-env v1.0.1)
-      env:
-        MONGODB_HOST: localhost
-        MONGODB_PORT: 27017
-        MONGODB_USERNAME: testuser
-        MONGODB_PASSWORD: testpass
-        MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: testdb
-      run: go test -v -run TestEnvironmentBindingDebugging
 
     - name: Run integration tests
       env:
@@ -110,7 +101,6 @@ jobs:
         MONGODB_USERNAME: testuser
         MONGODB_PASSWORD: testpass
         MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: testdb
       run: go test -v -race $(go list ./... | grep -v '/examples/')
 
     - name: Run tests with coverage
@@ -120,7 +110,6 @@ jobs:
         MONGODB_USERNAME: testuser
         MONGODB_PASSWORD: testpass
         MONGODB_DATABASE: testdb
-        MONGODB_AUTH_DATABASE: testdb
       run: go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v '/examples/')
 
     - name: Upload coverage to Codecov

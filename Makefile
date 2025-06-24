@@ -26,21 +26,21 @@ test: ## Run unit tests
 	go test -v -race -short ./...
 
 test-integration: ## Run integration tests (requires MongoDB with test user)
+	env -i PATH=$(PATH) HOME=$(HOME) \
 	MONGODB_HOST=localhost \
 	MONGODB_PORT=27017 \
 	MONGODB_USERNAME=testuser \
 	MONGODB_PASSWORD=testpass \
 	MONGODB_DATABASE=testdb \
-	MONGODB_AUTH_DATABASE=testdb \
 	go test -v -race ./...
 
 test-coverage: ## Run tests with coverage
+	env -i PATH=$(PATH) HOME=$(HOME) \
 	MONGODB_HOST=localhost \
 	MONGODB_PORT=27017 \
 	MONGODB_USERNAME=testuser \
 	MONGODB_PASSWORD=testpass \
 	MONGODB_DATABASE=testdb \
-	MONGODB_AUTH_DATABASE=testdb \
 	go test -v -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 
@@ -67,17 +67,26 @@ docker-mongodb: ## Start MongoDB in Docker
 
 docker-setup-test-user: ## Create test database user (run after docker-mongodb)
 	@echo "Waiting for MongoDB to be ready..."
-	@timeout 60 bash -c 'until nc -z localhost 27017; do sleep 1; done' || (echo "MongoDB not ready" && exit 1)
+	@for i in $$(seq 1 60); do \
+		if nc -z localhost 27017; then \
+			echo "MongoDB is ready!"; \
+			break; \
+		fi; \
+		echo "Waiting... ($$i/60)"; \
+		sleep 1; \
+	done
 	@sleep 5
 	@echo "Creating test database user..."
 	docker exec mongodb-dev mongosh --username admin --password password --authenticationDatabase admin --eval " \
-		use testdb; \
+		use admin; \
 		db.createUser({ \
 			user: 'testuser', \
 			pwd: 'testpass', \
 			roles: [ \
 				{ role: 'readWrite', db: 'testdb' }, \
-				{ role: 'dbAdmin', db: 'testdb' } \
+				{ role: 'dbAdmin', db: 'testdb' }, \
+				{ role: 'readWrite', db: 'app' }, \
+				{ role: 'dbAdmin', db: 'app' } \
 			] \
 		}); \
 		db.runCommand({ connectionStatus: 1 }); \

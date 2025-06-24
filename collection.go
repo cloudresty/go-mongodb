@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/cloudresty/emit"
@@ -48,10 +49,24 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 		emit.ZString("collection", col.name),
 		emit.ZString("ulid", ulid))
 
+	if result == nil {
+		return nil, fmt.Errorf("insert result is nil")
+	}
+
+	objectID, ok := result.InsertedID.(bson.ObjectID)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert InsertedID to ObjectID")
+	}
+
+	createdAt, ok := enhanced["created_at"].(time.Time)
+	if !ok {
+		createdAt = time.Now() // fallback
+	}
+
 	return &InsertOneResult{
-		InsertedID:  result.InsertedID.(bson.ObjectID),
+		InsertedID:  objectID,
 		ULID:        ulid,
-		GeneratedAt: enhanced["created_at"].(time.Time),
+		GeneratedAt: createdAt,
 	}, nil
 }
 
@@ -83,9 +98,17 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 		return nil, err
 	}
 
+	if result == nil {
+		return nil, fmt.Errorf("insert many result is nil")
+	}
+
 	insertedIDs := make([]bson.ObjectID, len(result.InsertedIDs))
 	for i, id := range result.InsertedIDs {
-		insertedIDs[i] = id.(bson.ObjectID)
+		if objectID, ok := id.(bson.ObjectID); ok {
+			insertedIDs[i] = objectID
+		} else {
+			return nil, fmt.Errorf("failed to convert InsertedID at index %d to ObjectID", i)
+		}
 	}
 
 	timestamp := time.Now()

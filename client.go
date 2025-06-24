@@ -218,6 +218,10 @@ func NewClientWithPrefix(prefix string) (*Client, error) {
 
 // NewClientWithConfig creates a new MongoDB client with the provided configuration
 func NewClientWithConfig(config *Config) (*Client, error) {
+	if config == nil {
+		return nil, fmt.Errorf("config cannot be nil")
+	}
+
 	emit.Info.StructuredFields("Creating new MongoDB client",
 		emit.ZString("host", config.Host),
 		emit.ZInt("port", config.Port),

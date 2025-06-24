@@ -191,7 +191,7 @@ func TestHealthCheck(t *testing.T) {
 	// Test new HealthCheck method
 	health := client.HealthCheck()
 	if health == nil {
-		t.Error("Expected health status to be returned")
+		t.Fatal("Expected health status to be returned")
 	}
 
 	if !health.IsHealthy {

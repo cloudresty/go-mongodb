@@ -196,7 +196,7 @@ func TestConfigBuildConnectionURI(t *testing.T) {
 				Database:     "testdb",
 				AuthDatabase: "admin",
 			},
-			expected: "mongodb://user:pass@localhost:27017/testdb",
+			expected: "mongodb://user:pass@localhost:27017/testdb?authSource=admin",
 		},
 		{
 			name: "with replica set",

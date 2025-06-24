@@ -1,0 +1,141 @@
+package mongodb
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/cloudresty/go-env"
+)
+
+// LoadConfig loads MongoDB configuration from environment variables
+func LoadConfig() (*Config, error) {
+	return LoadConfigWithPrefix("")
+}
+
+// LoadConfigWithPrefix loads MongoDB configuration with a custom environment prefix
+func LoadConfigWithPrefix(prefix string) (*Config, error) {
+	// Create empty config struct - go-env v1.0.1 will apply defaults from struct tags
+	config := &Config{}
+
+	bindOptions := env.DefaultBindingOptions()
+	if prefix != "" {
+		bindOptions.Prefix = prefix
+	}
+
+	// Bind environment variables and apply defaults from struct tags
+	if err := env.Bind(config, bindOptions); err != nil {
+		return nil, fmt.Errorf("failed to load environment config: %w", err)
+	}
+
+	// Validate the final configuration
+	if err := validateConfig(config); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return config, nil
+}
+
+// validateConfig validates the MongoDB configuration
+func validateConfig(config *Config) error {
+	// Host and Port are always required now (defaults are set if not provided)
+	if config.Host == "" || config.Port == 0 {
+		return errors.New("MONGODB_HOST and MONGODB_PORT must be set")
+	}
+
+	// All other validation is for enum values only since defaults are set via struct tags
+	if !isValidReadPreference(config.ReadPreference) {
+		return fmt.Errorf("invalid read preference: %s", config.ReadPreference)
+	}
+
+	if !isValidCompressionAlgorithm(config.CompressionAlgorithm) {
+		return fmt.Errorf("invalid compression algorithm: %s", config.CompressionAlgorithm)
+	}
+
+	if !isValidLogLevel(config.LogLevel) {
+		return fmt.Errorf("invalid log level: %s", config.LogLevel)
+	}
+
+	if !isValidLogFormat(config.LogFormat) {
+		return fmt.Errorf("invalid log format: %s", config.LogFormat)
+	}
+
+	return nil
+}
+
+// isValidReadPreference checks if the read preference is valid
+func isValidReadPreference(pref string) bool {
+	validPrefs := []string{"primary", "primaryPreferred", "secondary", "secondaryPreferred", "nearest"}
+	for _, valid := range validPrefs {
+		if pref == valid {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidCompressionAlgorithm checks if the compression algorithm is valid
+func isValidCompressionAlgorithm(algo string) bool {
+	validAlgos := []string{"snappy", "zlib", "zstd"}
+	for _, valid := range validAlgos {
+		if algo == valid {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidLogLevel checks if the log level is valid
+func isValidLogLevel(level string) bool {
+	validLevels := []string{"debug", "info", "warn", "error"}
+	for _, valid := range validLevels {
+		if level == valid {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidLogFormat checks if the log format is valid
+func isValidLogFormat(format string) bool {
+	validFormats := []string{"json", "text"}
+	for _, valid := range validFormats {
+		if format == valid {
+			return true
+		}
+	}
+	return false
+}
+
+// Environment variable names for reference
+const (
+	EnvMongoDBHost                 = "MONGODB_HOST"
+	EnvMongoDBPort                 = "MONGODB_PORT"
+	EnvMongoDBUsername             = "MONGODB_USERNAME"
+	EnvMongoDBPassword             = "MONGODB_PASSWORD"
+	EnvMongoDBDatabase             = "MONGODB_DATABASE"
+	EnvMongoDBAuthDatabase         = "MONGODB_AUTH_DATABASE"
+	EnvMongoDBReplicaSet           = "MONGODB_REPLICA_SET"
+	EnvMongoDBMaxPoolSize          = "MONGODB_MAX_POOL_SIZE"
+	EnvMongoDBMinPoolSize          = "MONGODB_MIN_POOL_SIZE"
+	EnvMongoDBMaxIdleTime          = "MONGODB_MAX_IDLE_TIME"
+	EnvMongoDBMaxConnIdleTime      = "MONGODB_MAX_CONN_IDLE_TIME"
+	EnvMongoDBConnectTimeout       = "MONGODB_CONNECT_TIMEOUT"
+	EnvMongoDBServerSelectTimeout  = "MONGODB_SERVER_SELECT_TIMEOUT"
+	EnvMongoDBSocketTimeout        = "MONGODB_SOCKET_TIMEOUT"
+	EnvMongoDBReconnectEnabled     = "MONGODB_RECONNECT_ENABLED"
+	EnvMongoDBReconnectDelay       = "MONGODB_RECONNECT_DELAY"
+	EnvMongoDBMaxReconnectDelay    = "MONGODB_MAX_RECONNECT_DELAY"
+	EnvMongoDBReconnectBackoff     = "MONGODB_RECONNECT_BACKOFF"
+	EnvMongoDBMaxReconnectAttempts = "MONGODB_MAX_RECONNECT_ATTEMPTS"
+	EnvMongoDBHealthCheckEnabled   = "MONGODB_HEALTH_CHECK_ENABLED"
+	EnvMongoDBHealthCheckInterval  = "MONGODB_HEALTH_CHECK_INTERVAL"
+	EnvMongoDBCompressionEnabled   = "MONGODB_COMPRESSION_ENABLED"
+	EnvMongoDBCompressionAlgorithm = "MONGODB_COMPRESSION_ALGORITHM"
+	EnvMongoDBReadPreference       = "MONGODB_READ_PREFERENCE"
+	EnvMongoDBWriteConcern         = "MONGODB_WRITE_CONCERN"
+	EnvMongoDBReadConcern          = "MONGODB_READ_CONCERN"
+	EnvMongoDBAppName              = "MONGODB_APP_NAME"
+	EnvMongoDBConnectionName       = "MONGODB_CONNECTION_NAME"
+	EnvMongoDBLogLevel             = "MONGODB_LOG_LEVEL"
+	EnvMongoDBLogFormat            = "MONGODB_LOG_FORMAT"
+)

@@ -7,7 +7,7 @@ import (
 )
 
 func TestLoadFromEnv(t *testing.T) {
-	// Set test environment variables
+	// Save current environment variables that we'll modify
 	envVars := map[string]string{
 		"MONGODB_HOST":            "testhost",
 		"MONGODB_PORT":            "27018",
@@ -20,14 +20,23 @@ func TestLoadFromEnv(t *testing.T) {
 		"MONGODB_CONNECT_TIMEOUT": "10s",
 	}
 
+	savedValues := make(map[string]string)
+	for key := range envVars {
+		savedValues[key] = os.Getenv(key)
+	}
+
 	// Set environment variables
 	for key, value := range envVars {
 		os.Setenv(key, value)
 	}
 	defer func() {
-		// Clean up environment variables
+		// Restore environment variables
 		for key := range envVars {
-			os.Unsetenv(key)
+			if value, exists := savedValues[key]; exists && value != "" {
+				os.Setenv(key, value)
+			} else {
+				os.Unsetenv(key)
+			}
 		}
 	}()
 
@@ -75,14 +84,23 @@ func TestLoadFromEnvWithPrefix(t *testing.T) {
 		"MYAPP_MONGODB_DATABASE": "prefixdb",
 	}
 
+	savedValues := make(map[string]string)
+	for key := range envVars {
+		savedValues[key] = os.Getenv(key)
+	}
+
 	// Set environment variables
 	for key, value := range envVars {
 		os.Setenv(key, value)
 	}
 	defer func() {
-		// Clean up environment variables
+		// Restore environment variables
 		for key := range envVars {
-			os.Unsetenv(key)
+			if value, exists := savedValues[key]; exists && value != "" {
+				os.Setenv(key, value)
+			} else {
+				os.Unsetenv(key)
+			}
 		}
 	}()
 
@@ -221,16 +239,28 @@ func TestConfigBuildConnectionURI(t *testing.T) {
 }
 
 func TestEnvDefaults(t *testing.T) {
-	// Ensure no relevant environment variables are set
-	envVarsToUnset := []string{
+	// Save current environment variables
+	envVarsToSave := []string{
 		"MONGODB_HOST", "MONGODB_PORT", "MONGODB_USERNAME", "MONGODB_PASSWORD",
 		"MONGODB_DATABASE", "MONGODB_AUTH_DATABASE", "MONGODB_REPLICA_SET",
 		"MONGODB_MAX_POOL_SIZE", "MONGODB_MIN_POOL_SIZE", "MONGODB_CONNECT_TIMEOUT", "MONGODB_APP_NAME",
 	}
 
-	for _, envVar := range envVarsToUnset {
+	savedValues := make(map[string]string)
+	for _, envVar := range envVarsToSave {
+		savedValues[envVar] = os.Getenv(envVar)
 		os.Unsetenv(envVar)
 	}
+	defer func() {
+		// Restore environment variables
+		for _, envVar := range envVarsToSave {
+			if value, exists := savedValues[envVar]; exists && value != "" {
+				os.Setenv(envVar, value)
+			} else {
+				os.Unsetenv(envVar)
+			}
+		}
+	}()
 
 	// Test the configuration loading using our LoadConfig function
 	config, err := LoadConfig()

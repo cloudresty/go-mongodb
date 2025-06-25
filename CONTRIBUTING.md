@@ -254,10 +254,7 @@ go test -v -run TestClient
 # Run with race detection
 go test -race ./...
 
-# Run benchmarks
-go test -bench=. ./...
-
-# Run with coverage
+# Run all tests with coverage
 go test -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out
 ```

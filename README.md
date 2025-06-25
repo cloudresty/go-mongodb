@@ -4,7 +4,7 @@
 
 &nbsp;
 
-A modern, production-ready Go package for MongoDB operations with environment-first configuration, ULID ObjectIDs, and comprehensive production features.
+A modern, production-ready Go package for MongoDB operations with environment-first configuration, ULID IDs, and comprehensive production features.
 
 &nbsp;
 
@@ -36,7 +36,7 @@ A modern, production-ready Go package for MongoDB operations with environment-fi
 ## Key Features
 
 - **Environment-First**: Configure via environment variables for cloud-native deployments
-- **ULID ObjectIDs**: 6x faster generation, database-optimized, lexicographically sortable
+- **ULID IDs**: 6x faster generation, database-optimized, lexicographically sortable
 - **Auto-Reconnection**: Intelligent retry with configurable backoff
 - **Production-Ready**: Graceful shutdown, timeouts, health checks, transaction support
 - **High Performance**: Zero-allocation logging, optimized for throughput
@@ -78,7 +78,7 @@ func main() {
     }
     defer client.Close()
 
-    // Insert a document with auto-generated ULID ObjectID
+    // Insert a document with auto-generated ULID ID
     collection := client.Collection("users")
     result, err := collection.InsertOne(context.Background(), map[string]any{
         "name":  "John Doe",
@@ -125,7 +125,7 @@ export MONGODB_CONNECTION_NAME=my-service
 | [API Reference](docs/api-reference.md) | Complete function reference and usage patterns |
 | [Environment Configuration](docs/environment-configuration.md) | Environment variables and deployment configurations |
 | [Production Features](docs/production-features.md) | Auto-reconnection, graceful shutdown, health checks, transactions |
-| [ULID ObjectIDs](docs/ulid-objectids.md) | High-performance, database-optimized document identifiers |
+| [ULID IDs](docs/ulid-ids.md) | High-performance, database-optimized document identifiers |
 | [Examples](docs/examples.md) | Comprehensive examples and usage patterns |
 
 🔝 [back to top](#go-mongodb)
@@ -148,7 +148,7 @@ Perfect for modern cloud deployments with Docker, Kubernetes, and CI/CD pipeline
 
 &nbsp;
 
-### ULID ObjectIDs
+### ULID IDs
 
 Get 6x faster document ID generation with better database performance compared to UUIDs. Natural time-ordering and collision resistance.
 

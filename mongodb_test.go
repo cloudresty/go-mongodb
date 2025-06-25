@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,14 +15,7 @@ func TestClientCreation(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	config := &Config{
-		Host:           "localhost",
-		Port:           27017,
-		Database:       "test",
-		ConnectTimeout: 5 * time.Second,
-	}
-
-	client, err := NewClientWithConfig(config)
+	client, err := NewClient()
 	if err != nil {
 		t.Skipf("Could not connect to MongoDB: %v", err)
 	}
@@ -47,7 +41,7 @@ func TestDatabaseCreation(t *testing.T) {
 		_ = client.Close() // Ignore error during cleanup
 	}()
 
-	db := client.Database("test_database")
+	db := client.Database()
 	if db == nil {
 		t.Error("Expected database to be created")
 	}
@@ -88,7 +82,7 @@ func TestCollectionOperations(t *testing.T) {
 		t.Fatalf("Failed to insert document: %v", err)
 	}
 
-	if result.InsertedID.IsZero() {
+	if result.InsertedID == "" {
 		t.Error("Expected inserted ID to be set")
 	}
 
@@ -239,6 +233,10 @@ func TestTransactionOperations(t *testing.T) {
 	})
 
 	if err != nil {
+		// Skip if transactions are not supported (e.g., standalone MongoDB)
+		if strings.Contains(err.Error(), "Transaction numbers are only allowed on a replica set member or mongos") {
+			t.Skip("Skipping transaction test: MongoDB is not running as a replica set")
+		}
 		t.Fatalf("Transaction failed: %v", err)
 	}
 }
@@ -257,7 +255,7 @@ func TestBulkOperations(t *testing.T) {
 	}()
 
 	// Setup test collection
-	db := client.Database("test_db")
+	db := client.Database()
 	collection := db.Collection("test_bulk_collection")
 
 	ctx := context.Background()

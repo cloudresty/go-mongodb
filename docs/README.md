@@ -13,7 +13,7 @@ Please check out the latest documentation for the go-mongodb package, which prov
 - [API Reference](api-reference.md)
 - [Environment Configuration](environment-configuration.md)
 - [Production Features](production-features.md)
-- [ULID ObjectIDs](ulid-objectids.md)
+- [ULID IDs](ulid-ids.md)
 - [Examples](examples.md)
 
 &nbsp;

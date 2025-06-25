@@ -207,16 +207,6 @@ func Ping(ctx ...context.Context) error {
 
 // Helper functions for common MongoDB operations
 
-// ObjectIDFromHex creates an ObjectID from a hex string
-func ObjectIDFromHex(hex string) (bson.ObjectID, error) {
-	return bson.ObjectIDFromHex(hex)
-}
-
-// NewObjectID generates a new ObjectID
-func NewObjectID() bson.ObjectID {
-	return bson.NewObjectID()
-}
-
 // NewULID generates a new ULID string
 func NewULID() string {
 	return generateULID()
@@ -232,14 +222,31 @@ func GenerateULIDFromTime(t time.Time) string {
 	return generateULIDFromTime(t)
 }
 
-// GenerateObjectIDFromULID generates a MongoDB ObjectID that embeds a ULID
-func GenerateObjectIDFromULID() bson.ObjectID {
-	return generateObjectIDFromULID()
-}
-
-// EnhanceDocument adds ULID and metadata to a document
+// EnhanceDocument adds ULID and metadata to a document (uses default ULID mode)
 func EnhanceDocument(doc any) bson.M {
-	return enhanceDocument(doc)
+	timestamp := time.Now()
+
+	enhanced := bson.M{
+		"created_at": timestamp,
+		"updated_at": timestamp,
+	}
+
+	// Merge with existing document first
+	if docBytes, err := bson.Marshal(doc); err == nil {
+		var docMap bson.M
+		if err := bson.Unmarshal(docBytes, &docMap); err == nil {
+			for k, v := range docMap {
+				enhanced[k] = v
+			}
+		}
+	}
+
+	// Generate ULID if no _id provided (default behavior)
+	if _, hasID := enhanced["_id"]; !hasID {
+		enhanced["_id"] = GenerateULID()
+	}
+
+	return enhanced
 }
 
 // Common BSON helpers

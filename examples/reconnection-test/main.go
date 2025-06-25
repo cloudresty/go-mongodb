@@ -62,7 +62,7 @@ func main() {
 		} else {
 			emit.Info.StructuredFields("Insert operation successful",
 				emit.ZInt("iteration", i+1),
-				emit.ZString("inserted_id", result.InsertedID.(bson.ObjectID).Hex()))
+				emit.ZString("inserted_id", result.InsertedID.(string)))
 		}
 
 		// Try to count documents

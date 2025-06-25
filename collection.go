@@ -31,7 +31,7 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 		defer cancel()
 	}
 
-	enhanced := enhanceDocument(document)
+	enhanced := col.client.enhanceDocument(document)
 	result, err := col.collection.InsertOne(ctx, enhanced, opts...)
 	if err != nil {
 		emit.Error.StructuredFields("Failed to insert document",
@@ -41,7 +41,7 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 	}
 
 	ulid := ""
-	if ulidVal, ok := enhanced["ulid"].(string); ok {
+	if ulidVal, ok := enhanced["_id"].(string); ok {
 		ulid = ulidVal
 	}
 
@@ -53,9 +53,9 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 		return nil, fmt.Errorf("insert result is nil")
 	}
 
-	objectID, ok := result.InsertedID.(bson.ObjectID)
+	insertedID, ok := result.InsertedID.(string)
 	if !ok {
-		return nil, fmt.Errorf("failed to convert InsertedID to ObjectID")
+		return nil, fmt.Errorf("failed to convert InsertedID to string ULID")
 	}
 
 	createdAt, ok := enhanced["created_at"].(time.Time)
@@ -64,8 +64,7 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 	}
 
 	return &InsertOneResult{
-		InsertedID:  objectID,
-		ULID:        ulid,
+		InsertedID:  insertedID,
 		GeneratedAt: createdAt,
 	}, nil
 }
@@ -82,9 +81,9 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 	ulids := make([]string, len(documents))
 
 	for i, doc := range documents {
-		enhancedDoc := enhanceDocument(doc)
+		enhancedDoc := col.client.enhanceDocument(doc)
 		enhanced[i] = enhancedDoc
-		if ulidVal, ok := enhancedDoc["ulid"].(string); ok {
+		if ulidVal, ok := enhancedDoc["_id"].(string); ok {
 			ulids[i] = ulidVal
 		}
 	}
@@ -102,12 +101,12 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 		return nil, fmt.Errorf("insert many result is nil")
 	}
 
-	insertedIDs := make([]bson.ObjectID, len(result.InsertedIDs))
+	insertedIDs := make([]string, len(result.InsertedIDs))
 	for i, id := range result.InsertedIDs {
-		if objectID, ok := id.(bson.ObjectID); ok {
-			insertedIDs[i] = objectID
+		if ulidID, ok := id.(string); ok {
+			insertedIDs[i] = ulidID
 		} else {
-			return nil, fmt.Errorf("failed to convert InsertedID at index %d to ObjectID", i)
+			return nil, fmt.Errorf("failed to convert InsertedID at index %d to string ULID", i)
 		}
 	}
 
@@ -124,7 +123,6 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 
 	return &InsertManyResult{
 		InsertedIDs:   insertedIDs,
-		ULIDs:         ulids,
 		InsertedCount: int64(len(result.InsertedIDs)),
 		GeneratedAt:   timestamp,
 	}, nil
@@ -198,7 +196,7 @@ func (col *Collection) UpdateOne(ctx context.Context, filter any, update any, op
 	}
 
 	if result.UpsertedID != nil {
-		updateResult.UpsertedID = result.UpsertedID.(bson.ObjectID)
+		updateResult.UpsertedID = result.UpsertedID.(string)
 	}
 
 	emit.Debug.StructuredFields("Document updated successfully",
@@ -235,7 +233,7 @@ func (col *Collection) UpdateMany(ctx context.Context, filter any, update any, o
 	}
 
 	if result.UpsertedID != nil {
-		updateResult.UpsertedID = result.UpsertedID.(bson.ObjectID)
+		updateResult.UpsertedID = result.UpsertedID.(string)
 	}
 
 	emit.Debug.StructuredFields("Documents updated successfully",
@@ -272,7 +270,7 @@ func (col *Collection) ReplaceOne(ctx context.Context, filter any, replacement a
 	}
 
 	if result.UpsertedID != nil {
-		updateResult.UpsertedID = result.UpsertedID.(bson.ObjectID)
+		updateResult.UpsertedID = result.UpsertedID.(string)
 	}
 
 	emit.Debug.StructuredFields("Document replaced successfully",

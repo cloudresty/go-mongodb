@@ -1,16 +1,16 @@
-# ULID ObjectIDs
+# ULID IDs
 
-[Home](../README.md) &nbsp;/&nbsp; [Docs](README.md) &nbsp;/&nbsp; ULID ObjectIDs
+[Home](../README.md) &nbsp;/&nbsp; [Docs](README.md) &nbsp;/&nbsp; ULID IDs
 
 &nbsp;
 
-This document covers the ULID ObjectID implementation that provides high-performance, database-optimized document identifiers.
+This document covers the ULID ID implementation that provides high-performance, database-optimized document identifiers.
 
 &nbsp;
 
 ## Overview
 
-ULID (Universally Unique Lexicographically Sortable Identifier) ObjectIDs provide significant advantages over traditional UUIDs and standard MongoDB ObjectIDs for modern applications.
+ULID (Universally Unique Lexicographically Sortable Identifier) IDs provide significant advantages over traditional UUIDs and standard MongoDB ObjectIDs for modern applications.
 
 &nbsp;
 
@@ -20,15 +20,15 @@ ULID (Universally Unique Lexicographically Sortable Identifier) ObjectIDs provid
 - **Database Optimized**: Better database performance and storage efficiency
 - **Lexicographically Sortable**: Natural time-ordering without additional fields
 - **Collision Resistant**: 128-bit entropy ensures uniqueness
-- **MongoDB Compatible**: Embedded within standard MongoDB ObjectIDs
+- **MongoDB Compatible**: Works seamlessly with MongoDB collections using ULID strings as _id
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
 ## Automatic ULID Generation
 
-All document insertions automatically receive ULID-enhanced ObjectIDs and metadata.
+All document insertions automatically receive ULID IDs and metadata.
 
 &nbsp;
 
@@ -45,12 +45,11 @@ result, err := collection.InsertOne(ctx, map[string]any{
 })
 
 // Result contains ULID information
-fmt.Printf("Inserted ID: %s\n", result.InsertedID.Hex())
-fmt.Printf("ULID: %s\n", result.ULID)
+fmt.Printf("Inserted ID: %s\n", result.InsertedID)
 fmt.Printf("Generated at: %s\n", result.GeneratedAt)
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -67,8 +66,7 @@ doc := map[string]any{
 
 // After insertion, document contains:
 {
-    "_id": ObjectID("..."),           // MongoDB ObjectID with embedded ULID
-    "ulid": "01HGQJ5Z8K9X7N2M4P6R8T3V5W", // Standalone ULID string
+    "_id": "01HGQJ5Z8K9X7N2M4P6R8T3V5W",     // ULID string as _id
     "name": "Alice Smith",
     "email": "alice@example.com",
     "created_at": ISODate("2024-01-15T10:30:00Z"),
@@ -76,7 +74,7 @@ doc := map[string]any{
 }
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -97,7 +95,7 @@ doc := map[string]any{
 - **Randomness**: 80-bit cryptographically random data
 - **Total**: 128-bit identifier (26 characters when encoded)
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -113,7 +111,7 @@ ulid2 := generateULID() // 01HGQJ5Z8L1A3B5C7D9E2F4G6H
 // This enables efficient database queries and indexing
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -126,14 +124,14 @@ ulid2 := generateULID() // 01HGQJ5Z8L1A3B5C7D9E2F4G6H
 ```go
 collection := client.Collection("users")
 
-// Find by ULID field
+// Find by ULID _id field
 var user map[string]any
 err := collection.FindOne(ctx, map[string]any{
-    "ulid": "01HGQJ5Z8K9X7N2M4P6R8T3V5W",
+    "_id": "01HGQJ5Z8K9X7N2M4P6R8T3V5W",
 }).Decode(&user)
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -149,29 +147,29 @@ endULID := mongodb.GenerateULIDFromTime(endTime)
 
 // Query documents created in January 2024
 cursor, err := collection.Find(ctx, map[string]any{
-    "ulid": map[string]any{
+    "_id": map[string]any{
         "$gte": startULID,
         "$lte": endULID,
     },
 })
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
 ### Sorting by Creation Time
 
 ```go
-// Sort by ULID for chronological order (no need for separate timestamp field)
+// Sort by ULID _id for chronological order
 cursor, err := collection.Find(ctx,
     map[string]any{},
     &options.FindOptions{
-        Sort: map[string]any{"ulid": 1}, // Ascending (oldest first)
+        Sort: map[string]any{"_id": 1}, // Ascending (oldest first)
     },
 )
 
-// Or sort by ObjectID (also contains embedded ULID)
+// Or descending order (newest first)
 cursor, err = collection.Find(ctx,
     map[string]any{},
     &options.FindOptions{
@@ -180,7 +178,7 @@ cursor, err = collection.Find(ctx,
 )
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -196,7 +194,7 @@ cursor, err = collection.Find(ctx,
 | **UUID v4** | ~1,000,000 | 1.0x baseline |
 | **MongoDB ObjectID** | ~8,000,000 | 8.0x faster |
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -204,16 +202,16 @@ cursor, err = collection.Find(ctx,
 
 ```go
 // Benchmark: Insert 100,000 documents
-// ULID ObjectIDs: 12.3 seconds
+// ULID IDs: 12.3 seconds
 // UUID v4: 18.7 seconds
 // Improvement: ~34% faster insertions
 
 // Index efficiency
-// ULID ObjectIDs: Better B-tree balance due to time-ordering
+// ULID IDs: Better B-tree balance due to time-ordering
 // UUID v4: Random distribution causes index fragmentation
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -224,7 +222,7 @@ cursor, err = collection.Find(ctx,
 - **UUID String**: 36 bytes (with hyphens)
 - **MongoDB ObjectID**: 12 bytes (but less entropy)
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -239,16 +237,12 @@ cursor, err = collection.Find(ctx,
 ulid := mongodb.GenerateULID()
 fmt.Printf("Generated ULID: %s\n", ulid)
 
-// Generate ObjectID with embedded ULID
-objectID := mongodb.GenerateObjectIDFromULID()
-fmt.Printf("ObjectID: %s\n", objectID.Hex())
-
 // Generate ULID from specific time
 timestamp := time.Now().Add(-1 * time.Hour)
 pastULID := mongodb.GenerateULIDFromTime(timestamp)
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -267,7 +261,7 @@ enhancedDoc := mongodb.EnhanceDocument(doc)
 result, err := collection.InsertOne(ctx, enhancedDoc)
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -284,12 +278,12 @@ docs := []any{
 result, err := collection.InsertMany(ctx, docs)
 
 // Each document gets unique ULID
-for i, ulid := range result.ULIDs {
-    fmt.Printf("Document %d ULID: %s\n", i+1, ulid)
+for i, ulidId := range result.InsertedIDs {
+    fmt.Printf("Document %d ULID: %s\n", i+1, ulidId)
 }
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -305,7 +299,7 @@ collection := client.Collection("users")
 
 // Update existing documents with ULIDs
 cursor, err := collection.Find(ctx, map[string]any{
-    "ulid": map[string]any{"$exists": false},
+    "_id": map[string]any{"$type": "objectId"}, // Find old ObjectID docs
 })
 
 for cursor.Next(ctx) {
@@ -328,7 +322,7 @@ for cursor.Next(ctx) {
 }
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -346,7 +340,7 @@ collection.CreateIndex(ctx, map[string]any{"uuid": 1})
 collection.CreateIndex(ctx, map[string]any{"ulid": 1})
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -357,19 +351,19 @@ collection.CreateIndex(ctx, map[string]any{"ulid": 1})
 ### Indexing Strategy
 
 ```go
-// Primary index on ULID for time-based queries
-collection.CreateIndex(ctx, map[string]any{"ulid": 1})
+// Primary index on _id (ULID) for time-based queries (automatically created)
+// Additional indexes can be created as needed
 
-// Compound indexes with ULID first
+// Compound indexes with ULID _id first
 collection.CreateIndex(ctx, map[string]any{
-    "ulid": 1,
+    "_id": 1,
     "status": 1,
 })
 
 // Avoid indexes on random UUIDs (causes fragmentation)
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -382,14 +376,14 @@ endULID := mongodb.GenerateULIDFromTime(endTime)
 
 // This query uses index efficiently
 filter := map[string]any{
-    "ulid": map[string]any{
+    "_id": map[string]any{
         "$gte": startULID,
         "$lt": endULID,
     },
 }
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -397,11 +391,11 @@ filter := map[string]any{
 
 - **Use ULID for primary keys** when you need time-ordered identifiers
 - **Keep UUID for external APIs** if required for compatibility
-- **Index on ULID fields** for efficient queries
+- **Use ULID _id fields** for efficient queries (no additional indexes needed)
 - **Use ULID prefixes** for sharding strategies
 - **Consider ULID in URL design** for user-friendly, sortable URLs
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -425,7 +419,7 @@ if time.Since(lastGeneratedTime) < 0 {
 }
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -443,7 +437,7 @@ if mongodb.IsDuplicateKeyError(err) {
 }
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 
@@ -462,7 +456,7 @@ if duration > time.Microsecond {
 }
 ```
 
-🔝 [back to top](#ulid-objectids)
+🔝 [back to top](#ulid-ids)
 
 &nbsp;
 

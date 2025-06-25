@@ -14,17 +14,17 @@ import (
 )
 
 type Order struct {
-	ID       bson.ObjectID `bson:"_id,omitempty" json:"id"`
-	Product  string        `bson:"product" json:"product"`
-	Quantity int           `bson:"quantity" json:"quantity"`
-	Amount   float64       `bson:"amount" json:"amount"`
-	Status   string        `bson:"status" json:"status"`
+	ID       string  `bson:"_id,omitempty" json:"id"` // ULID string
+	Product  string  `bson:"product" json:"product"`
+	Quantity int     `bson:"quantity" json:"quantity"`
+	Amount   float64 `bson:"amount" json:"amount"`
+	Status   string  `bson:"status" json:"status"`
 }
 
 type Inventory struct {
-	ID       bson.ObjectID `bson:"_id,omitempty" json:"id"`
-	Product  string        `bson:"product" json:"product"`
-	Quantity int           `bson:"quantity" json:"quantity"`
+	ID       string `bson:"_id,omitempty" json:"id"` // ULID string
+	Product  string `bson:"product" json:"product"`
+	Quantity int    `bson:"quantity" json:"quantity"`
 }
 
 func main() {
@@ -101,7 +101,7 @@ func main() {
 		}
 
 		emit.Info.StructuredFields("Order created",
-			emit.ZString("order_id", order.ID.String()),
+			emit.ZString("order_id", order.ID),
 			emit.ZInt("quantity", order.Quantity))
 
 		// Update inventory
@@ -158,7 +158,7 @@ func main() {
 
 	order := result.(Order)
 	emit.Info.StructuredFields("Transaction completed successfully",
-		emit.ZString("order_id", order.ID.String()),
+		emit.ZString("order_id", order.ID),
 		emit.ZFloat64("amount", order.Amount),
 		emit.ZString("status", order.Status))
 

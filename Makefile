@@ -26,7 +26,7 @@ test: ## Run unit tests
 	go test -v -race -short ./...
 
 test-integration: ## Run integration tests (requires MongoDB with test user)
-	env -i PATH=$(PATH) HOME=$(HOME) \
+	env -i PATH="$(PATH)" HOME="$(HOME)" \
 	MONGODB_HOST=localhost \
 	MONGODB_PORT=27017 \
 	MONGODB_USERNAME=testuser \
@@ -35,7 +35,7 @@ test-integration: ## Run integration tests (requires MongoDB with test user)
 	go test -v -race ./...
 
 test-coverage: ## Run tests with coverage
-	env -i PATH=$(PATH) HOME=$(HOME) \
+	env -i PATH="$(PATH)" HOME="$(HOME)" \
 	MONGODB_HOST=localhost \
 	MONGODB_PORT=27017 \
 	MONGODB_USERNAME=testuser \
@@ -125,12 +125,8 @@ install-tools: ## Install development tools
 security: ## Run security checks
 	gosec ./...
 
-# Benchmarks
-bench: ## Run benchmarks
-	go test -bench=. -benchmem ./...
-
 # All tests
-test-all: test test-integration bench ## Run all tests including benchmarks
+test-all: test test-integration ## Run all tests
 
 test-local: docker-stop docker-mongodb-full test-integration ## Setup local MongoDB and run integration tests
 

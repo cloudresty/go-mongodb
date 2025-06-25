@@ -65,6 +65,16 @@ config, err := mongodb.LoadConfigWithPrefix("MYAPP_")
 
 &nbsp;
 
+### Document Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGODB_ID_MODE` | `ulid` | ID generation strategy (ulid, objectid, custom) |
+
+🔝 [back to top](#environment-configuration)
+
+&nbsp;
+
 ### Pool Variables
 
 | Variable | Default | Description |
@@ -150,6 +160,7 @@ MONGODB_PORT=27017
 MONGODB_USERNAME=myuser
 MONGODB_PASSWORD=mypassword
 MONGODB_DATABASE=production
+MONGODB_ID_MODE=ulid
 MONGODB_CONNECTION_NAME=my-production-service
 MONGODB_MAX_POOL_SIZE=200
 MONGODB_CONNECT_TIMEOUT=15s
@@ -176,12 +187,13 @@ services:
     environment:
       MONGODB_HOST: mongodb
       MONGODB_DATABASE: myapp
+      MONGODB_ID_MODE: ulid
       MONGODB_USERNAME: app_user
       MONGODB_PASSWORD: secure_password
       MONGODB_CONNECTION_NAME: my-app-instance
     depends_on:
       - mongodb
-  
+
   mongodb:
     image: mongo:7
     environment:
@@ -212,6 +224,8 @@ spec:
           value: "mongodb-service"
         - name: MONGODB_DATABASE
           value: "myapp"
+        - name: MONGODB_ID_MODE
+          value: "ulid"
         - name: MONGODB_USERNAME
           valueFrom:
             secretKeyRef:
@@ -262,6 +276,7 @@ uri := config.BuildConnectionURI()
 # Minimal development setup
 export MONGODB_HOST=localhost
 export MONGODB_DATABASE=myapp_dev
+export MONGODB_ID_MODE=ulid
 export MONGODB_LOG_LEVEL=debug
 ```
 
@@ -280,6 +295,7 @@ export MONGODB_PASSWORD=secure_production_password
 export MONGODB_DATABASE=myapp_production
 export MONGODB_AUTH_DATABASE=admin
 export MONGODB_REPLICA_SET=rs0
+export MONGODB_ID_MODE=ulid
 export MONGODB_CONNECTION_NAME=myapp-production
 export MONGODB_MAX_POOL_SIZE=200
 export MONGODB_MIN_POOL_SIZE=10
@@ -303,11 +319,13 @@ export MONGODB_LOG_FORMAT=json
 # Service A configuration
 export PAYMENTS_MONGODB_HOST=mongodb-payments.internal
 export PAYMENTS_MONGODB_DATABASE=payments
+export PAYMENTS_MONGODB_ID_MODE=objectid
 export PAYMENTS_MONGODB_CONNECTION_NAME=payments-service
 
-# Service B configuration  
+# Service B configuration
 export ORDERS_MONGODB_HOST=mongodb-orders.internal
 export ORDERS_MONGODB_DATABASE=orders
+export ORDERS_MONGODB_ID_MODE=ulid
 export ORDERS_MONGODB_CONNECTION_NAME=orders-service
 
 # Load in application

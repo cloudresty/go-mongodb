@@ -15,7 +15,7 @@ The package includes several examples in the `examples/` directory:
 - **`basic-client/`** - Basic MongoDB client setup using environment variables
 - **`env-config/`** - Environment variable configuration examples
 - **`transactions/`** - Multi-document transactions
-- **`ulid-demo/`** - ULID-based ObjectIDs with MongoDB
+- **`ulid-demo/`** - ULID-based IDs with MongoDB
 - **`reconnection-test/`** - Auto-reconnection behavior demonstration
 
 🔝 [back to top](#examples)
@@ -340,9 +340,8 @@ func main() {
         SetWriteConcern(writeconcern.Majority())
 
     result, err := session.WithTransaction(context.Background(), func(sessCtx context.Context) (any, error) {
-        // Create order
+        // Create order (ULID will be auto-generated)
         order := bson.M{
-            "_id":       bson.NewObjectID(),
             "product":   "laptop",
             "quantity":  1,
             "amount":    999.99,
@@ -413,11 +412,10 @@ func main() {
 
     coll := client.Database("myapp").Collection("users")
 
-    // Bulk insert
+    // Bulk insert (ULIDs will be auto-generated)
     var documents []any
     for i := 0; i < 1000; i++ {
         documents = append(documents, bson.M{
-            "_id":    bson.NewObjectID(),
             "name":   fmt.Sprintf("User %d", i),
             "email":  fmt.Sprintf("user%d@example.com", i),
             "active": true,
@@ -621,7 +619,269 @@ make ci
 
 &nbsp;
 
-### Testing Best Practices
+## ID Generation Strategies
+
+The package supports multiple ID generation strategies for document `_id` fields.
+
+&nbsp;
+
+### ULID IDs (Default)
+
+ULID provides temporal ordering and better database performance:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/cloudresty/go-mongodb"
+)
+
+func main() {
+    // Default behavior uses ULID
+    client, err := mongodb.NewClient()
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("users")
+
+    // Insert document with automatic ULID generation
+    result, err := collection.InsertOne(context.Background(), map[string]interface{}{
+        "name":  "Alice Smith",
+        "email": "alice@example.com",
+        "age":   30,
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Inserted document with ULID: %s\n", result.InsertedID)
+    // Output: Inserted document with ULID: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+}
+```
+
+### ObjectID Mode
+
+For compatibility with existing MongoDB applications:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+
+    "github.com/cloudresty/go-mongodb"
+    "go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func main() {
+    // Configure client to use ObjectID
+    config := &mongodb.Config{
+        Host:     "localhost",
+        Port:     27017,
+        Database: "myapp",
+        IDMode:   mongodb.IDModeObjectID,
+    }
+
+    client, err := mongodb.ConnectWithConfig(config)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("products")
+
+    // Insert document with automatic ObjectID generation
+    result, err := collection.InsertOne(context.Background(), map[string]interface{}{
+        "name":        "Widget Pro",
+        "price":       29.99,
+        "category":    "electronics",
+        "in_stock":    true,
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Inserted document with ObjectID: %s\n", result.InsertedID)
+    // Output: Inserted document with ObjectID: 507f1f77bcf86cd799439011
+}
+```
+
+### User-Provided IDs
+
+Let users control their own ID generation:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+
+    "github.com/cloudresty/go-mongodb"
+)
+
+func main() {
+    // Configure client to not generate IDs
+    config := &mongodb.Config{
+        Host:     "localhost",
+        Port:     27017,
+        Database: "myapp",
+        IDMode:   mongodb.IDModeCustom,
+    }
+
+    client, err := mongodb.ConnectWithConfig(config)
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("orders")
+
+    // User provides their own ID
+    result, err := collection.InsertOne(context.Background(), map[string]interface{}{
+        "_id":         "order-2023-12-001",
+        "customer_id": "customer-456",
+        "total":       149.99,
+        "status":      "pending",
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Inserted document with custom ID: %s\n", result.InsertedID)
+    // Output: Inserted document with custom ID: order-2023-12-001
+}
+```
+
+### Environment-Based Configuration
+
+Configure ID mode via environment variables:
+
+```bash
+# Use ObjectID for production
+export MONGODB_ID_MODE=objectid
+export MONGODB_HOST=prod.mongodb.com
+export MONGODB_DATABASE=production
+
+# Use ULID for development (default)
+export MONGODB_ID_MODE=ulid
+export MONGODB_HOST=localhost
+export MONGODB_DATABASE=development
+```
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+
+    "github.com/cloudresty/go-mongodb"
+)
+
+func main() {
+    // Client automatically uses MONGODB_ID_MODE environment variable
+    client, err := mongodb.NewClient()
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("analytics")
+
+    // ID generation strategy depends on environment
+    result, err := collection.InsertOne(context.Background(), map[string]interface{}{
+        "event":     "user_login",
+        "user_id":   "user-789",
+        "timestamp": "2023-12-01T10:30:00Z",
+        "ip":        "192.168.1.100",
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    idMode := os.Getenv("MONGODB_ID_MODE")
+    if idMode == "" {
+        idMode = "ulid" // default
+    }
+
+    fmt.Printf("Inserted document (%s mode): %s\n", idMode, result.InsertedID)
+}
+```
+
+### Mixed ID Strategies
+
+You can override the client's ID mode by providing your own `_id`:
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+
+    "github.com/cloudresty/go-mongodb"
+    "go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func main() {
+    // Client configured for ULID (default)
+    client, err := mongodb.NewClient()
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("mixed_collection")
+
+    // Document 1: Automatic ULID generation
+    result1, err := collection.InsertOne(context.Background(), map[string]interface{}{
+        "type": "auto_ulid",
+        "data": "Generated ULID",
+    })
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("Auto ULID: %s\n", result1.InsertedID)
+
+    // Document 2: User-provided string ID
+    result2, err := collection.InsertOne(context.Background(), map[string]interface{}{
+        "_id":  "custom-string-id-123",
+        "type": "custom_string",
+        "data": "Custom string ID",
+    })
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("Custom string: %s\n", result2.InsertedID)
+
+    // Document 3: User-provided ObjectID
+    customObjectID := bson.NewObjectID()
+    result3, err := collection.InsertOne(context.Background(), map[string]interface{}{
+        "_id":  customObjectID,
+        "type": "custom_objectid",
+        "data": "Custom ObjectID",
+    })
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("Custom ObjectID: %s\n", result3.InsertedID)
+}
+```
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+## Testing Best Practices
 
 - **Use Docker for integration tests** - Consistent test environment
 - **Mock connections for unit tests** - Fast, isolated testing

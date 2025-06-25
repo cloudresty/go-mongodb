@@ -59,6 +59,10 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("invalid log format: %s", config.LogFormat)
 	}
 
+	if !isValidIDMode(string(config.IDMode)) {
+		return fmt.Errorf("invalid ID mode: %s", config.IDMode)
+	}
+
 	return nil
 }
 
@@ -106,6 +110,17 @@ func isValidLogFormat(format string) bool {
 	return false
 }
 
+// isValidIDMode checks if the ID mode is valid
+func isValidIDMode(mode string) bool {
+	validModes := []string{"ulid", "objectid", "custom"}
+	for _, valid := range validModes {
+		if mode == valid {
+			return true
+		}
+	}
+	return false
+}
+
 // Environment variable names for reference
 const (
 	EnvMongoDBHost                 = "MONGODB_HOST"
@@ -136,6 +151,7 @@ const (
 	EnvMongoDBReadConcern          = "MONGODB_READ_CONCERN"
 	EnvMongoDBAppName              = "MONGODB_APP_NAME"
 	EnvMongoDBConnectionName       = "MONGODB_CONNECTION_NAME"
+	EnvMongoDBIDMode               = "MONGODB_ID_MODE"
 	EnvMongoDBLogLevel             = "MONGODB_LOG_LEVEL"
 	EnvMongoDBLogFormat            = "MONGODB_LOG_FORMAT"
 )

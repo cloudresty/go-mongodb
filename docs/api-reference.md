@@ -118,7 +118,6 @@ This document provides a comprehensive overview of all available functions in th
 |----------|-------------|
 | `GenerateULID()` | Generate a new ULID string |
 | `GenerateULIDFromTime(time)` | Generate a ULID with a specific timestamp |
-| `GenerateObjectIDFromULID()` | Generate MongoDB ObjectID that embeds a ULID |
 | `EnhanceDocument(doc)` | Add ULID and metadata to a document |
 | `NewULID()` | Alias for GenerateULID() |
 
@@ -175,6 +174,11 @@ type Config struct {
     // Application settings
     AppName              string
     ConnectionName       string
+
+    // ID Generation settings
+    IDMode               IDMode        // "ulid", "objectid", or "custom"
+
+    // Logging settings
     LogLevel             string
     LogFormat            string
 }
@@ -184,18 +188,43 @@ type Config struct {
 
 &nbsp;
 
+### IDMode
+
+```go
+type IDMode string
+
+const (
+    // IDModeULID generates ULID strings as document IDs (default)
+    IDModeULID     IDMode = "ulid"
+
+    // IDModeObjectID generates MongoDB ObjectIDs as document IDs
+    IDModeObjectID IDMode = "objectid"
+
+    // IDModeCustom allows users to provide their own _id fields
+    IDModeCustom   IDMode = "custom"
+)
+```
+
+The IDMode controls how document IDs are generated:
+
+- **`ulid`** (default): Generates 26-character ULID strings with temporal ordering
+- **`objectid`**: Generates standard MongoDB ObjectIDs
+- **`custom`**: No automatic ID generation; user must provide `_id` or MongoDB will auto-generate
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
 ### Result Types
 
 ```go
 type InsertOneResult struct {
-    InsertedID  bson.ObjectID
-    ULID        string
+    InsertedID  string    // ULID string
     GeneratedAt time.Time
 }
 
 type InsertManyResult struct {
-    InsertedIDs   []bson.ObjectID
-    ULIDs         []string
+    InsertedIDs   []string  // ULID strings
     InsertedCount int64
     GeneratedAt   time.Time
 }
@@ -203,7 +232,7 @@ type InsertManyResult struct {
 type UpdateResult struct {
     MatchedCount  int64
     ModifiedCount int64
-    UpsertedID    bson.ObjectID
+    UpsertedID    string  // ULID string
     UpsertedCount int64
 }
 
@@ -426,6 +455,72 @@ defer func() {
 
 &nbsp;
 
+## Environment Variables
+
+The following environment variables are supported for configuration:
+
+### Connection Settings
+
+- `MONGODB_HOST` - MongoDB host (default: localhost)
+- `MONGODB_PORT` - MongoDB port (default: 27017)
+- `MONGODB_USERNAME` - Username for authentication
+- `MONGODB_PASSWORD` - Password for authentication
+- `MONGODB_DATABASE` - Database name (default: app)
+- `MONGODB_AUTH_DATABASE` - Authentication database (default: admin)
+- `MONGODB_REPLICA_SET` - Replica set name
+
+### ID Generation
+
+- `MONGODB_ID_MODE` - ID generation strategy: `ulid`, `objectid`, or `custom` (default: ulid)
+
+### Connection Pool
+
+- `MONGODB_MAX_POOL_SIZE` - Maximum connection pool size (default: 100)
+- `MONGODB_MIN_POOL_SIZE` - Minimum connection pool size (default: 5)
+- `MONGODB_MAX_IDLE_TIME` - Maximum idle time (default: 5m)
+- `MONGODB_MAX_CONN_IDLE_TIME` - Maximum connection idle time (default: 10m)
+
+### Timeouts
+
+- `MONGODB_CONNECT_TIMEOUT` - Connection timeout (default: 10s)
+- `MONGODB_SERVER_SELECT_TIMEOUT` - Server selection timeout (default: 5s)
+- `MONGODB_SOCKET_TIMEOUT` - Socket timeout (default: 10s)
+
+### Reconnection
+
+- `MONGODB_RECONNECT_ENABLED` - Enable auto-reconnection (default: true)
+- `MONGODB_RECONNECT_DELAY` - Initial reconnection delay (default: 5s)
+- `MONGODB_MAX_RECONNECT_DELAY` - Maximum reconnection delay (default: 1m)
+- `MONGODB_RECONNECT_BACKOFF` - Backoff multiplier (default: 2.0)
+- `MONGODB_MAX_RECONNECT_ATTEMPTS` - Maximum reconnection attempts (default: 10)
+
+### Health Checks
+
+- `MONGODB_HEALTH_CHECK_ENABLED` - Enable health checks (default: true)
+- `MONGODB_HEALTH_CHECK_INTERVAL` - Health check interval (default: 30s)
+
+### Performance
+
+- `MONGODB_COMPRESSION_ENABLED` - Enable compression (default: true)
+- `MONGODB_COMPRESSION_ALGORITHM` - Compression algorithm: `snappy`, `zlib`, `zstd` (default: snappy)
+- `MONGODB_READ_PREFERENCE` - Read preference: `primary`, `primaryPreferred`, `secondary`, `secondaryPreferred`, `nearest` (default: primary)
+- `MONGODB_WRITE_CONCERN` - Write concern (default: majority)
+- `MONGODB_READ_CONCERN` - Read concern: `local`, `available`, `majority`, `linearizable` (default: local)
+
+### Application
+
+- `MONGODB_APP_NAME` - Application name (default: go-mongodb-app)
+- `MONGODB_CONNECTION_NAME` - Connection name for identification
+
+### Logging
+
+- `MONGODB_LOG_LEVEL` - Log level: `debug`, `info`, `warn`, `error` (default: info)
+- `MONGODB_LOG_FORMAT` - Log format: `json`, `text` (default: json)
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
 ## Performance Considerations
 
 - **Connection Pooling**: Configure `MaxPoolSize` and `MinPoolSize` based on your workload
@@ -433,7 +528,7 @@ defer func() {
 - **Indexes**: Create indexes for frequently queried fields
 - **Compression**: Enable compression for network-bound workloads
 - **Read Preferences**: Use appropriate read preferences for your consistency requirements
-- **ULID ObjectIDs**: Benefit from natural ordering and better database performance
+- **ULID IDs**: Benefit from natural ordering and better database performance
 
 🔝 [back to top](#api-reference)
 

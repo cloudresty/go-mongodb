@@ -2,13 +2,11 @@ package mongodb
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/cloudresty/emit"
-	"github.com/cloudresty/go-env"
 	"github.com/cloudresty/ulid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -16,6 +14,18 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/readconcern"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 	"go.mongodb.org/mongo-driver/v2/mongo/writeconcern"
+)
+
+// IDMode defines the ID generation strategy for documents
+type IDMode string
+
+const (
+	// IDModeULID generates ULID strings as document IDs (default)
+	IDModeULID IDMode = "ulid"
+	// IDModeObjectID generates MongoDB ObjectIDs as document IDs
+	IDModeObjectID IDMode = "objectid"
+	// IDModeCustom allows users to provide their own _id fields
+	IDModeCustom IDMode = "custom"
 )
 
 // Client represents a MongoDB client with auto-reconnection and environment-first configuration
@@ -75,6 +85,9 @@ type Config struct {
 	// Application settings
 	AppName        string `env:"MONGODB_APP_NAME,default=go-mongodb-app"`
 	ConnectionName string `env:"MONGODB_CONNECTION_NAME"`
+
+	// ID Generation settings
+	IDMode IDMode `env:"MONGODB_ID_MODE,default=ulid"`
 
 	// Logging
 	LogLevel  string `env:"MONGODB_LOG_LEVEL,default=info"`
@@ -148,25 +161,23 @@ type HealthStatus struct {
 
 // InsertOneResult represents the result of an insert operation
 type InsertOneResult struct {
-	InsertedID  bson.ObjectID `json:"inserted_id" bson:"_id"`
-	ULID        string        `json:"ulid" bson:"ulid"`
-	GeneratedAt time.Time     `json:"generated_at" bson:"generated_at"`
+	InsertedID  string    `json:"inserted_id" bson:"_id"` // ULID used directly as _id
+	GeneratedAt time.Time `json:"generated_at" bson:"generated_at"`
 }
 
 // InsertManyResult represents the result of a bulk insert operation
 type InsertManyResult struct {
-	InsertedIDs   []bson.ObjectID `json:"inserted_ids" bson:"inserted_ids"`
-	ULIDs         []string        `json:"ulids" bson:"ulids"`
-	InsertedCount int64           `json:"inserted_count" bson:"inserted_count"`
-	GeneratedAt   time.Time       `json:"generated_at" bson:"generated_at"`
+	InsertedIDs   []string  `json:"inserted_ids" bson:"inserted_ids"` // ULIDs used directly as _ids
+	InsertedCount int64     `json:"inserted_count" bson:"inserted_count"`
+	GeneratedAt   time.Time `json:"generated_at" bson:"generated_at"`
 }
 
 // UpdateResult represents the result of an update operation
 type UpdateResult struct {
-	MatchedCount  int64         `json:"matched_count" bson:"matched_count"`
-	ModifiedCount int64         `json:"modified_count" bson:"modified_count"`
-	UpsertedID    bson.ObjectID `json:"upserted_id,omitempty" bson:"upserted_id,omitempty"`
-	UpsertedCount int64         `json:"upserted_count" bson:"upserted_count"`
+	MatchedCount  int64  `json:"matched_count" bson:"matched_count"`
+	ModifiedCount int64  `json:"modified_count" bson:"modified_count"`
+	UpsertedID    string `json:"upserted_id,omitempty" bson:"upserted_id,omitempty"` // ULID string
+	UpsertedCount int64  `json:"upserted_count" bson:"upserted_count"`
 }
 
 // DeleteResult represents the result of a delete operation
@@ -204,13 +215,9 @@ func NewClient() (*Client, error) {
 
 // NewClientWithPrefix creates a new MongoDB client with a custom environment prefix
 func NewClientWithPrefix(prefix string) (*Client, error) {
-	config := &Config{}
-	bindOptions := env.DefaultBindingOptions()
-	if prefix != "" {
-		bindOptions.Prefix = prefix
-	}
-	if err := env.Bind(config, bindOptions); err != nil {
-		return nil, fmt.Errorf("failed to load environment config: %w", err)
+	config, err := LoadConfigWithPrefix(prefix)
+	if err != nil {
+		return nil, err
 	}
 
 	return NewClientWithConfig(config)
@@ -573,39 +580,34 @@ func generateULIDFromTime(t time.Time) string {
 	return id
 }
 
-// generateObjectIDFromULID generates a MongoDB ObjectID that embeds a ULID
-func generateObjectIDFromULID() bson.ObjectID {
-	ulid := generateULID()
-
-	// Use the first 12 bytes of the ULID (converted to hex) as ObjectID
-	ulidBytes, _ := hex.DecodeString(ulid[:24])
-	var objectIDBytes [12]byte
-	copy(objectIDBytes[:], ulidBytes)
-
-	return bson.ObjectID(objectIDBytes)
-}
-
-// enhanceDocument adds ULID and metadata to a document
-func enhanceDocument(doc any) bson.M {
-	ulid := generateULID()
+// enhanceDocument adds ID and metadata to a document based on client configuration
+func (c *Client) enhanceDocument(doc any) bson.M {
 	timestamp := time.Now()
 
 	enhanced := bson.M{
-		"_id":        generateObjectIDFromULID(),
-		"ulid":       ulid,
 		"created_at": timestamp,
 		"updated_at": timestamp,
 	}
 
-	// Merge with existing document
+	// Merge with existing document first
 	if docBytes, err := bson.Marshal(doc); err == nil {
 		var docMap bson.M
 		if err := bson.Unmarshal(docBytes, &docMap); err == nil {
 			for k, v := range docMap {
-				if k != "_id" { // Don't override our generated ID
-					enhanced[k] = v
-				}
+				enhanced[k] = v
 			}
+		}
+	}
+
+	// Generate ID based on client configuration, but only if not already provided
+	if _, hasID := enhanced["_id"]; !hasID {
+		switch c.config.IDMode {
+		case IDModeObjectID:
+			enhanced["_id"] = bson.NewObjectID()
+		case IDModeCustom:
+			// Don't add any _id, let user provide it or let MongoDB auto-generate
+		default: // IDModeULID
+			enhanced["_id"] = generateULID()
 		}
 	}
 

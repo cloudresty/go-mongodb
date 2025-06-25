@@ -430,7 +430,7 @@ config := &mongodb.Config{
 
 | Operation | Throughput | Latency (P99) | Notes |
 |-----------|------------|---------------|-------|
-| **Insert** | 50K ops/sec | <5ms | With ULID ObjectIDs |
+| **Insert** | 50K ops/sec | <5ms | With ULID IDs |
 | **Find** | 100K ops/sec | <2ms | Simple queries with indexes |
 | **Update** | 40K ops/sec | <8ms | Single document updates |
 | **Aggregate** | 10K ops/sec | <50ms | Complex pipelines |
@@ -453,7 +453,7 @@ Essential items for production deployment:
 - **Environment-first configuration** - zero-config setup with MONGODB_* environment variables
 - **Auto-reconnection** - intelligent retry with configurable backoff
 - **Health checks** - automated monitoring and status reporting
-- **ULID ObjectIDs** - high-performance, database-optimized identifiers
+- **ULID IDs** - high-performance, database-optimized identifiers
 - **Transaction support** - ACID compliance with retry logic
 
 **📋 Additional Recommended Items:**

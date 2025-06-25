@@ -26,6 +26,9 @@ func TestULIDDocumentGeneration(t *testing.T) {
 	collection := client.Collection("test_ulid_generation")
 	ctx := context.Background()
 
+	// Cleanup collection before test
+	cleanupTestCollection(t, client, "test_ulid_generation")
+
 	// Insert a document and verify ULID is generated
 	testDoc := bson.M{"name": "Test User", "type": "ulid_test"}
 	result, err := collection.InsertOne(ctx, testDoc)
@@ -40,16 +43,16 @@ func TestULIDDocumentGeneration(t *testing.T) {
 		t.Fatalf("Failed to find inserted document: %v", err)
 	}
 
-	// Check if ULID field exists
-	ulidValue, exists := insertedDoc["ulid"]
+	// Check if _id field exists and is a ULID
+	ulidValue, exists := insertedDoc["_id"]
 	if !exists {
-		t.Error("Expected ULID field to be present in document")
+		t.Error("Expected _id field to be present in document")
 	}
 
 	// Verify it's a valid ULID string
 	ulidStr, ok := ulidValue.(string)
 	if !ok {
-		t.Errorf("Expected ULID to be string, got %T", ulidValue)
+		t.Errorf("Expected _id to be string ULID, got %T", ulidValue)
 	}
 
 	// Parse to verify it's a valid ULID
@@ -92,8 +95,11 @@ func TestULIDUniqueness(t *testing.T) {
 	collection := client.Collection("test_ulid_uniqueness")
 	ctx := context.Background()
 
+	// Cleanup collection before test
+	cleanupTestCollection(t, client, "test_ulid_uniqueness")
+
 	documentULIDs := make(map[string]bool)
-	var insertedIDs []bson.ObjectID
+	var insertedIDs []string
 
 	// Generate 10 documents and verify all ULIDs are unique
 	for i := 0; i < 10; i++ {
@@ -112,7 +118,7 @@ func TestULIDUniqueness(t *testing.T) {
 			t.Fatalf("Failed to find document %d: %v", i, err)
 		}
 
-		ulidStr := doc["ulid"].(string)
+		ulidStr := doc["_id"].(string)
 
 		if documentULIDs[ulidStr] {
 			t.Fatalf("Duplicate ULID generated: %s", ulidStr)
@@ -159,9 +165,12 @@ func TestULIDTemporalOrdering(t *testing.T) {
 	collection := client.Collection("test_ulid_ordering")
 	ctx := context.Background()
 
+	// Cleanup collection before test
+	cleanupTestCollection(t, client, "test_ulid_ordering")
+
 	const numDocuments = 5
 	ulids := make([]string, numDocuments)
-	var insertedIDs []bson.ObjectID
+	var insertedIDs []string
 
 	// Generate documents with small delays to ensure temporal ordering
 	for i := 0; i < numDocuments; i++ {
@@ -180,7 +189,7 @@ func TestULIDTemporalOrdering(t *testing.T) {
 			t.Fatalf("Failed to find document %d: %v", i, err)
 		}
 
-		ulids[i] = doc["ulid"].(string)
+		ulids[i] = doc["_id"].(string)
 
 		// Parse the ULID to get the timestamp
 		parsedUlid, err := ulid.Parse(ulids[i])
@@ -233,6 +242,9 @@ func TestFindByULID(t *testing.T) {
 	collection := client.Collection("test_find_by_ulid")
 	ctx := context.Background()
 
+	// Cleanup collection before test
+	cleanupTestCollection(t, client, "test_find_by_ulid")
+
 	// Insert a document
 	testDoc := bson.M{"name": "Find By ULID Test", "type": "find_test"}
 	result, err := collection.InsertOne(ctx, testDoc)
@@ -247,7 +259,7 @@ func TestFindByULID(t *testing.T) {
 		t.Fatalf("Failed to find inserted document: %v", err)
 	}
 
-	testULID := insertedDoc["ulid"].(string)
+	testULID := insertedDoc["_id"].(string)
 
 	// Test FindByULID
 	var foundDoc bson.M
@@ -261,8 +273,8 @@ func TestFindByULID(t *testing.T) {
 		t.Errorf("Expected name 'Find By ULID Test', got %v", foundDoc["name"])
 	}
 
-	if foundDoc["ulid"] != testULID {
-		t.Errorf("Expected ULID %s, got %s", testULID, foundDoc["ulid"])
+	if foundDoc["_id"] != testULID {
+		t.Errorf("Expected ULID %s, got %s", testULID, foundDoc["_id"])
 	}
 
 	// Cleanup
@@ -272,8 +284,8 @@ func TestFindByULID(t *testing.T) {
 	}
 }
 
-// TestULIDObjectIDEmbedding tests that ObjectIDs embed ULID data
-func TestULIDObjectIDEmbedding(t *testing.T) {
+// TestULIDDocumentFormatting tests that ULID formatting works properly
+func TestULIDDocumentFormatting(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
@@ -286,33 +298,46 @@ func TestULIDObjectIDEmbedding(t *testing.T) {
 		_ = client.Close() // Ignore error during cleanup
 	}()
 
-	collection := client.Collection("test_objectid_ulid")
+	collection := client.Collection("test_ulid_operations")
 	ctx := context.Background()
 
+	// Cleanup collection before test
+	cleanupTestCollection(t, client, "test_ulid_operations")
+
 	// Insert a document
-	testDoc := bson.M{"name": "ObjectID ULID Test", "type": "objectid_test"}
+	testDoc := bson.M{"name": "ULID Test", "type": "ulid_test"}
 	result, err := collection.InsertOne(ctx, testDoc)
 	if err != nil {
 		t.Fatalf("Failed to insert document: %v", err)
 	}
 
-	// Verify ObjectID is properly formatted
-	objectID := result.InsertedID
-	if objectID.IsZero() {
-		t.Error("Expected non-zero ObjectID")
+	// Verify ULID is properly formatted
+	ulidID := result.InsertedID
+	if ulidID == "" {
+		t.Error("Expected non-empty ULID")
 	}
 
-	// ObjectID should be 12 bytes (24 hex characters when stringified)
-	objectIDStr := objectID.Hex()
-	if len(objectIDStr) != 24 {
-		t.Errorf("Expected ObjectID hex string length 24, got %d", len(objectIDStr))
+	// ULID should be 26 characters
+	if len(ulidID) != 26 {
+		t.Errorf("Expected ULID length 26, got %d", len(ulidID))
 	}
 
-	t.Logf("Generated ObjectID: %s", objectIDStr)
+	t.Logf("Generated ULID: %s", ulidID)
 
 	// Cleanup
 	_, err = collection.DeleteOne(ctx, bson.M{"_id": result.InsertedID})
 	if err != nil {
 		t.Logf("Failed to cleanup test document: %v", err)
+	}
+}
+
+// cleanupTestCollection removes all documents from a test collection
+func cleanupTestCollection(t *testing.T, client *Client, collectionName string) {
+	collection := client.Collection(collectionName)
+	ctx := context.Background()
+
+	_, err := collection.DeleteMany(ctx, bson.M{})
+	if err != nil {
+		t.Logf("Warning: Failed to cleanup collection %s: %v", collectionName, err)
 	}
 }

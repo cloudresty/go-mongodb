@@ -1,0 +1,160 @@
+=== RUN   TestLoadFromEnv
+--- PASS: TestLoadFromEnv (0.00s)
+=== RUN   TestLoadFromEnvWithPrefix
+--- PASS: TestLoadFromEnvWithPrefix (0.00s)
+=== RUN   TestBuildConnectionURI
+=== RUN   TestBuildConnectionURI/basic_configuration
+=== RUN   TestBuildConnectionURI/with_authentication
+=== RUN   TestBuildConnectionURI/with_replica_set
+=== RUN   TestBuildConnectionURI/full_configuration
+--- PASS: TestBuildConnectionURI (0.00s)
+    --- PASS: TestBuildConnectionURI/basic_configuration (0.00s)
+    --- PASS: TestBuildConnectionURI/with_authentication (0.00s)
+    --- PASS: TestBuildConnectionURI/with_replica_set (0.00s)
+    --- PASS: TestBuildConnectionURI/full_configuration (0.00s)
+=== RUN   TestConfigBuildConnectionURI
+=== RUN   TestConfigBuildConnectionURI/basic_config
+=== RUN   TestConfigBuildConnectionURI/with_credentials
+=== RUN   TestConfigBuildConnectionURI/with_replica_set
+--- PASS: TestConfigBuildConnectionURI (0.00s)
+    --- PASS: TestConfigBuildConnectionURI/basic_config (0.00s)
+    --- PASS: TestConfigBuildConnectionURI/with_credentials (0.00s)
+    --- PASS: TestConfigBuildConnectionURI/with_replica_set (0.00s)
+=== RUN   TestEnvDefaults
+--- PASS: TestEnvDefaults (0.00s)
+=== RUN   TestIDModeEnvironmentConfiguration
+=== RUN   TestIDModeEnvironmentConfiguration/ULID_via_env
+=== RUN   TestIDModeEnvironmentConfiguration/ObjectID_via_env
+=== RUN   TestIDModeEnvironmentConfiguration/Custom_via_env
+=== RUN   TestIDModeEnvironmentConfiguration/Invalid_mode
+--- PASS: TestIDModeEnvironmentConfiguration (0.00s)
+    --- PASS: TestIDModeEnvironmentConfiguration/ULID_via_env (0.00s)
+    --- PASS: TestIDModeEnvironmentConfiguration/ObjectID_via_env (0.00s)
+    --- PASS: TestIDModeEnvironmentConfiguration/Custom_via_env (0.00s)
+    --- PASS: TestIDModeEnvironmentConfiguration/Invalid_mode (0.00s)
+=== RUN   TestDefaultIDMode
+--- PASS: TestDefaultIDMode (0.00s)
+=== RUN   TestIDModeConfiguration
+=== RUN   TestIDModeConfiguration/ULID_mode
+=== RUN   TestIDModeConfiguration/ObjectID_mode
+=== RUN   TestIDModeConfiguration/Custom_mode
+--- PASS: TestIDModeConfiguration (0.00s)
+    --- PASS: TestIDModeConfiguration/ULID_mode (0.00s)
+    --- PASS: TestIDModeConfiguration/ObjectID_mode (0.00s)
+    --- PASS: TestIDModeConfiguration/Custom_mode (0.00s)
+=== RUN   TestUserProvidedID
+--- PASS: TestUserProvidedID (0.00s)
+=== RUN   TestIDModeValidation
+=== RUN   TestIDModeValidation/ulid
+=== RUN   TestIDModeValidation/objectid
+=== RUN   TestIDModeValidation/custom
+=== RUN   TestIDModeValidation/invalid
+=== RUN   TestIDModeValidation/#00
+=== RUN   TestIDModeValidation/ULID
+--- PASS: TestIDModeValidation (0.00s)
+    --- PASS: TestIDModeValidation/ulid (0.00s)
+    --- PASS: TestIDModeValidation/objectid (0.00s)
+    --- PASS: TestIDModeValidation/custom (0.00s)
+    --- PASS: TestIDModeValidation/invalid (0.00s)
+    --- PASS: TestIDModeValidation/#00 (0.00s)
+    --- PASS: TestIDModeValidation/ULID (0.00s)
+=== RUN   TestClientCreation
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestClientCreation (0.05s)
+=== RUN   TestDatabaseCreation
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestDatabaseCreation (0.04s)
+=== RUN   TestCollectionOperations
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestCollectionOperations (0.06s)
+=== RUN   TestIndexOperations
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Index created successfully","collection":"test_index_collection","index":"email_1"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestIndexOperations (0.05s)
+=== RUN   TestHealthCheck
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestHealthCheck (0.04s)
+=== RUN   TestTransactionOperations
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"error","message":"Failed to insert document","error":"(IllegalOperation) Transaction numbers are only allowed on a replica set member or mongos","collection":"test_transaction_collection"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"error","message":"Transaction failed","error":"(IllegalOperation) Transaction numbers are only allowed on a replica set member or mongos"}
+    mongodb_test.go:238: Skipping transaction test: MongoDB is not running as a replica set
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- SKIP: TestTransactionOperations (0.04s)
+=== RUN   TestBulkOperations
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestBulkOperations (0.05s)
+=== RUN   TestShutdownManagerNewInterface
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating shutdown manager"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Registered clients for graceful shutdown","count":1}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestShutdownManagerNewInterface (0.04s)
+=== RUN   TestULIDDocumentGeneration
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+    ulid_test.go:72: Generated ULID: 06btcs5e9dxjeq254xmbes7eq4
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestULIDDocumentGeneration (0.05s)
+=== RUN   TestULIDUniqueness
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+    ulid_test.go:140: Successfully generated 10 unique ULIDs
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestULIDUniqueness (0.07s)
+=== RUN   TestULIDTemporalOrdering
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+    ulid_test.go:206: Document 1: ULID=06btcs5ertmc21tgme9tndwm2c, Time=2025-06-25 10:21:45.67 +0100 BST
+    ulid_test.go:206: Document 2: ULID=06btcs5et3qb7zbn1j9jpes3z8, Time=2025-06-25 10:21:45.68 +0100 BST
+    ulid_test.go:206: Document 3: ULID=06btcs5ethhbt2gtad484t2888, Time=2025-06-25 10:21:45.684 +0100 BST
+    ulid_test.go:206: Document 4: ULID=06btcs5etzv8j24yacbxb176gr, Time=2025-06-25 10:21:45.687 +0100 BST
+    ulid_test.go:206: Document 5: ULID=06btcs5evcst0gmtgrmbqyc4j8, Time=2025-06-25 10:21:45.691 +0100 BST
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestULIDTemporalOrdering (0.07s)
+=== RUN   TestFindByULID
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestFindByULID (0.05s)
+=== RUN   TestULIDDocumentFormatting
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Creating new MongoDB client","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client initialized successfully","host":"localhost","port":27017,"database":"testdb","app_name":"go-mongodb-app"}
+    ulid_test.go:325: Generated ULID: 06btcs5f7psgm6zwsb9e4sf6pr
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"Closing MongoDB client"}
+{"timestamp":"2025-06-25T09:21:45.130Z","level":"info","message":"MongoDB client disconnected successfully"}
+--- PASS: TestULIDDocumentFormatting (0.05s)
+PASS
+ok  	github.com/cloudresty/go-mongodb	1.936s
+?   	github.com/cloudresty/go-mongodb/examples/basic-client	[no test files]
+?   	github.com/cloudresty/go-mongodb/examples/env-config	[no test files]
+?   	github.com/cloudresty/go-mongodb/examples/id-modes	[no test files]
+?   	github.com/cloudresty/go-mongodb/examples/reconnection-test	[no test files]
+?   	github.com/cloudresty/go-mongodb/examples/transactions	[no test files]
+?   	github.com/cloudresty/go-mongodb/examples/ulid-demo	[no test files]

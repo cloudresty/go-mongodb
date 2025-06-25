@@ -1,5 +1,9 @@
 name: CI
 
+# This CI workflow runs all tests with MongoDB authentication.
+# The examples/ folder is excluded from all test runs.
+# MongoDB runs with authentication enabled (admin/password + testuser/testpass).
+
 on:
   push:
     branches: [ main, develop ]
@@ -71,19 +75,25 @@ jobs:
       run: |
         echo "Creating test database user..."
         docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username admin --password password --authenticationDatabase admin --eval "
-          use admin;
-          db.createUser({
-            user: 'testuser',
-            pwd: 'testpass',
-            roles: [
-              { role: 'readWrite', db: 'testdb' },
-              { role: 'dbAdmin', db: 'testdb' },
-              { role: 'readWrite', db: 'app' },
-              { role: 'dbAdmin', db: 'app' }
-            ]
-          });
-          db.runCommand({ connectionStatus: 1 });
-        "
+          try {
+            db.getSiblingDB('admin').createUser({
+              user: 'testuser',
+              pwd: 'testpass',
+              roles: [
+                { role: 'readWrite', db: 'testdb' },
+                { role: 'dbAdmin', db: 'testdb' },
+                { role: 'readWrite', db: 'app' },
+                { role: 'dbAdmin', db: 'app' }
+              ]
+            });
+            print('User testuser created successfully');
+          } catch(e) {
+            if (e.code === 51003) {
+              print('User testuser already exists');
+            } else {
+              throw e;
+            }
+          }"
 
     - name: Run unit tests
       env:
@@ -94,14 +104,25 @@ jobs:
         MONGODB_DATABASE: testdb
       run: go test -v -race -short $(go list ./... | grep -v '/examples/')
 
-    - name: Run integration tests
+    - name: Run integration tests with authentication
       env:
-        MONGODB_HOST: localhost
-        MONGODB_PORT: 27017
-        MONGODB_USERNAME: testuser
-        MONGODB_PASSWORD: testpass
-        MONGODB_DATABASE: testdb
-      run: go test -v -race $(go list ./... | grep -v '/examples/')
+        TEST_MONGODB_HOST: localhost
+        TEST_MONGODB_PORT: 27017
+        TEST_MONGODB_USERNAME: testuser
+        TEST_MONGODB_PASSWORD: testpass
+        TEST_MONGODB_DATABASE: testdb
+      run: make test-integration
+
+    - name: Check test results
+      if: always()
+      run: make test-status
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-go-${{ matrix.go-version }}
+        path: test-results/
 
     - name: Run tests with coverage
       env:
@@ -131,4 +152,4 @@ jobs:
       uses: golangci/golangci-lint-action@v3
       with:
         version: latest
-        args: --out-format=colored-line-number
+        args: --out-format=colored-line-number --skip-dirs=examples

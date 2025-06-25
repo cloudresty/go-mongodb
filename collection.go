@@ -166,7 +166,7 @@ func (col *Collection) Find(ctx context.Context, filter any, opts ...options.Lis
 
 // FindByULID finds a document by its ULID
 func (col *Collection) FindByULID(ctx context.Context, ulid string) *mongo.SingleResult {
-	filter := bson.M{"ulid": ulid}
+	filter := bson.M{"_id": ulid}
 	return col.FindOne(ctx, filter)
 }
 

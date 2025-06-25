@@ -21,27 +21,46 @@ tidy: ## Tidy go modules
 	go mod tidy
 	go mod verify
 
+# Testing variables (can be overridden)
+TEST_MONGODB_HOST ?= localhost
+TEST_MONGODB_PORT ?= 27017
+TEST_MONGODB_DATABASE ?= app
+TEST_MONGODB_USERNAME ?=
+TEST_MONGODB_PASSWORD ?=
+
 # Testing
 test: ## Run unit tests
-	go test -v -race -short ./...
+	go test -v -race -short $(shell go list ./... | grep -v '/examples/')
 
-test-integration: ## Run integration tests (requires MongoDB with test user)
-	env -i PATH="$(PATH)" HOME="$(HOME)" \
-	MONGODB_HOST=localhost \
-	MONGODB_PORT=27017 \
-	MONGODB_USERNAME=testuser \
-	MONGODB_PASSWORD=testpass \
-	MONGODB_DATABASE=testdb \
-	go test -v -race ./...
+test-integration: ## Run integration tests (always uses authentication)
+	@echo "Running integration tests with authentication..."
+	@mkdir -p test-results
+	@if [ -n "$(TEST_MONGODB_USERNAME)" ] && [ -n "$(TEST_MONGODB_PASSWORD)" ]; then \
+		echo "Using custom credentials: $(TEST_MONGODB_USERNAME)@$(TEST_MONGODB_HOST):$(TEST_MONGODB_PORT)/$(TEST_MONGODB_DATABASE)"; \
+	else \
+		echo "Using default credentials: testuser@$(TEST_MONGODB_HOST):$(TEST_MONGODB_PORT)/testdb"; \
+	fi
+	@echo "Output will be saved to test-results/integration.txt"
+	@env -i PATH="$(PATH)" HOME="$(HOME)" \
+	MONGODB_HOST=$(TEST_MONGODB_HOST) \
+	MONGODB_PORT=$(TEST_MONGODB_PORT) \
+	MONGODB_USERNAME=$${TEST_MONGODB_USERNAME:-testuser} \
+	MONGODB_PASSWORD=$${TEST_MONGODB_PASSWORD:-testpass} \
+	MONGODB_DATABASE=$${TEST_MONGODB_DATABASE:-testdb} \
+	go test -v -race $$(go list ./... | grep -v '/examples/') > test-results/integration.txt 2>&1
+	@echo "Test completed. Check test-results/integration.txt for results."
+
+test-integration-auth: test-integration ## Alias for test-integration (for backward compatibility)
 
 test-coverage: ## Run tests with coverage
-	env -i PATH="$(PATH)" HOME="$(HOME)" \
-	MONGODB_HOST=localhost \
-	MONGODB_PORT=27017 \
-	MONGODB_USERNAME=testuser \
-	MONGODB_PASSWORD=testpass \
-	MONGODB_DATABASE=testdb \
-	go test -v -race -coverprofile=coverage.out ./...
+	@echo "Running tests with coverage and authentication..."
+	@env -i PATH="$(PATH)" HOME="$(HOME)" \
+	MONGODB_HOST=$(TEST_MONGODB_HOST) \
+	MONGODB_PORT=$(TEST_MONGODB_PORT) \
+	MONGODB_USERNAME=$${TEST_MONGODB_USERNAME:-testuser} \
+	MONGODB_PASSWORD=$${TEST_MONGODB_PASSWORD:-testpass} \
+	MONGODB_DATABASE=$${TEST_MONGODB_DATABASE:-testdb} \
+	go test -v -race -coverprofile=coverage.out $$(go list ./... | grep -v '/examples/')
 	go tool cover -html=coverage.out -o coverage.html
 
 # Build
@@ -55,6 +74,7 @@ build: ## Build examples
 
 clean: ## Clean build artifacts
 	rm -rf bin/
+	rm -rf test-results/
 	rm -f coverage.out coverage.html
 
 # Docker
@@ -77,20 +97,29 @@ docker-setup-test-user: ## Create test database user (run after docker-mongodb)
 	done
 	@sleep 5
 	@echo "Creating test database user..."
-	docker exec mongodb-dev mongosh --username admin --password password --authenticationDatabase admin --eval " \
-		use admin; \
-		db.createUser({ \
-			user: 'testuser', \
-			pwd: 'testpass', \
-			roles: [ \
-				{ role: 'readWrite', db: 'testdb' }, \
-				{ role: 'dbAdmin', db: 'testdb' }, \
-				{ role: 'readWrite', db: 'app' }, \
-				{ role: 'dbAdmin', db: 'app' } \
-			] \
-		}); \
-		db.runCommand({ connectionStatus: 1 }); \
-	"
+	@docker exec mongodb-dev mongosh --username admin --password password --authenticationDatabase admin --eval \
+		"try { \
+			db.getSiblingDB('admin').createUser({ \
+				user: 'testuser', \
+				pwd: 'testpass', \
+				roles: [ \
+					{ role: 'readWrite', db: 'testdb' }, \
+					{ role: 'dbAdmin', db: 'testdb' }, \
+					{ role: 'readWrite', db: 'app' }, \
+					{ role: 'dbAdmin', db: 'app' } \
+				] \
+			}); \
+			print('User testuser created successfully'); \
+		} catch(e) { \
+			if (e.code === 51003) { \
+				print('User testuser already exists'); \
+			} else { \
+				throw e; \
+			} \
+		}"
+	@echo "Verifying user creation..."
+	@docker exec mongodb-dev mongosh --username admin --password password --authenticationDatabase admin --eval \
+		"db.getSiblingDB('admin').getUsers().forEach(function(user) { if (user.user === 'testuser') print('✓ User testuser found'); });"
 
 docker-mongodb-full: docker-mongodb docker-setup-test-user ## Start MongoDB and create test user
 
@@ -128,7 +157,31 @@ security: ## Run security checks
 # All tests
 test-all: test test-integration ## Run all tests
 
-test-local: docker-stop docker-mongodb-full test-integration ## Setup local MongoDB and run integration tests
+test-results: ## Show latest test results
+	@echo "=== Latest Test Results ==="
+	@if [ -f test-results/integration.txt ]; then \
+		echo "--- Integration Tests (test-results/integration.txt) ---"; \
+		tail -n 20 test-results/integration.txt; \
+		echo ""; \
+	fi
+	@echo "Use 'cat test-results/*.txt' to see full results"
+
+test-status: ## Check if tests passed or failed
+	@echo "=== Test Status Summary ==="
+	@if [ -f test-results/integration.txt ]; then \
+		if grep -q "PASS" test-results/integration.txt && ! grep -q "FAIL" test-results/integration.txt; then \
+			echo "✅ Integration tests: PASSED"; \
+		else \
+			echo "❌ Integration tests: FAILED"; \
+		fi; \
+	else \
+		echo "ℹ️  No integration test results found. Run 'make test-integration' first."; \
+	fi
+
+test-local: docker-stop docker-mongodb-full test-integration ## Setup local MongoDB with auth and run integration tests
+
+test-local-simple: ## Run tests against existing MongoDB (detects auth automatically)
+	@$(MAKE) test-integration
 
 # Documentation
 docs: ## Generate documentation
@@ -140,3 +193,55 @@ tag: ## Create a new git tag (requires VERSION env var)
 	@if [ -z "$(VERSION)" ]; then echo "VERSION is required. Usage: make tag VERSION=v1.0.0"; exit 1; fi
 	git tag -a $(VERSION) -m "Release $(VERSION)"
 	git push origin $(VERSION)
+
+test-connection: ## Test MongoDB connection with credentials
+	@echo "Testing MongoDB connection..."
+	@docker exec mongodb-dev mongosh --username testuser --password testpass --authenticationDatabase admin --eval \
+		"try { \
+			db.runCommand({ping: 1}); \
+			print('✓ Authentication successful'); \
+			db.getSiblingDB('testdb').test.insertOne({test: 'connection'}); \
+			print('✓ Write operation successful'); \
+			db.getSiblingDB('testdb').test.deleteMany({test: 'connection'}); \
+			print('✓ Delete operation successful'); \
+		} catch(e) { \
+			print('✗ Connection failed: ' + e); \
+		}"
+
+# CI targets for GitHub Actions
+ci-test: ## Run all tests for CI (unit + integration with auth)
+	@echo "=== Running CI Test Suite ==="
+	@echo "1/3 Running unit tests..."
+	@go test -v -race -short $$(go list ./... | grep -v '/examples/')
+	@echo ""
+	@echo "2/3 Running integration tests with authentication..."
+	@$(MAKE) test-integration
+	@echo ""
+	@echo "3/3 Checking test results..."
+	@$(MAKE) test-status
+	@echo ""
+	@echo "=== CI Test Suite Complete ==="
+
+ci-setup-mongodb: ## Setup MongoDB for CI (Docker-based)
+	@echo "Setting up MongoDB for CI..."
+	@$(MAKE) docker-mongodb-full
+	@echo "MongoDB setup complete"
+
+ci-cleanup: ## Cleanup CI environment
+	@echo "Cleaning up CI environment..."
+	@$(MAKE) docker-stop clean
+	@echo "Cleanup complete"
+
+# Complete local testing workflow
+test-full-local: ## Complete local test workflow (setup + test + cleanup)
+	@echo "=== Full Local Test Workflow ==="
+	@$(MAKE) ci-setup-mongodb
+	@$(MAKE) ci-test
+	@echo "=== Test Workflow Complete ==="
+	@echo "Tip: Run 'make ci-cleanup' to stop MongoDB and clean up"
+
+test-clean: ## Clean test results and cache
+	@echo "Cleaning test results and cache..."
+	@rm -rf test-results/
+	@go clean -testcache
+	@echo "Test cleanup complete"

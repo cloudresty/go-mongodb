@@ -47,13 +47,18 @@ test-integration: ## Run integration tests (always uses authentication)
 		echo "Using default credentials: admin@$(TEST_MONGODB_HOSTS)/$(TEST_MONGODB_DATABASE)"; \
 	fi
 	@echo "Output will be saved to test-results/integration.txt"
-	@env -i PATH="$(PATH)" HOME="$(HOME)" \
+	@if env -i PATH="$(PATH)" HOME="$(HOME)" \
 	MONGODB_HOSTS=$(TEST_MONGODB_HOSTS) \
 	MONGODB_USERNAME=$(TEST_MONGODB_USERNAME) \
 	MONGODB_PASSWORD=$(TEST_MONGODB_PASSWORD) \
 	MONGODB_DATABASE=$(TEST_MONGODB_DATABASE) \
-	go test -v -race $$(go list ./... | grep -v '/examples/') > test-results/integration.txt 2>&1
-	@echo "Test completed. Check test-results/integration.txt for results."
+	go test -v -race $$(go list ./... | grep -v '/examples/') > test-results/integration.txt 2>&1; then \
+		echo "Test completed successfully. Check test-results/integration.txt for results."; \
+	else \
+		echo "Test failed. Error output:"; \
+		cat test-results/integration.txt; \
+		exit 1; \
+	fi
 
 test-integration-auth: test-integration ## Alias for test-integration (for backward compatibility)
 

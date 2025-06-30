@@ -2,7 +2,7 @@ name: CI
 
 # This CI workflow runs all tests with MongoDB authentication.
 # The examples/ folder is excluded from all test runs.
-# MongoDB runs with authentication enabled (admin/password + testuser/testpass).
+# MongoDB runs with authentication enabled using admin/password.
 
 on:
   push:
@@ -71,44 +71,47 @@ jobs:
         echo "Verifying MongoDB is accessible..."
         nc -z localhost 27017 && echo "MongoDB port is accessible" || exit 1
 
-    - name: Create test database user
+    - name: Create test databases
       run: |
-        echo "Creating test database user..."
+        echo "Creating test databases..."
         docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username admin --password password --authenticationDatabase admin --eval "
-          try {
-            db.getSiblingDB('admin').createUser({
-              user: 'testuser',
-              pwd: 'testpass',
-              roles: [
-                { role: 'readWrite', db: 'testdb' },
-                { role: 'dbAdmin', db: 'testdb' },
-                { role: 'readWrite', db: 'app' },
-                { role: 'dbAdmin', db: 'app' }
-              ]
-            });
-            print('User testuser created successfully');
-          } catch(e) {
-            if (e.code === 51003) {
-              print('User testuser already exists');
-            } else {
-              throw e;
-            }
-          }"
+          // Create the test databases
+          db.getSiblingDB('app').createCollection('_init');
+          print('Database app created');
+          "
+
+    - name: Verify test environment setup
+      env:
+        TEST_MONGODB_HOSTS: localhost:27017
+        TEST_MONGODB_USERNAME: admin
+        TEST_MONGODB_PASSWORD: password
+        TEST_MONGODB_DATABASE: app
+      run: |
+        echo "Testing MongoDB connection with admin user..."
+        docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username admin --password password --authenticationDatabase admin --eval "
+          print('Connected successfully as admin');
+          print('Available databases:');
+          db.adminCommand('listDatabases').databases.forEach(function(db) {
+            print('  ' + db.name);
+          });
+          print('Testing app database access:');
+          db.getSiblingDB('app').stats();
+          "
 
     - name: Run unit tests
       env:
         MONGODB_HOSTS: localhost:27017
-        MONGODB_USERNAME: testuser
-        MONGODB_PASSWORD: testpass
-        MONGODB_DATABASE: testdb
+        MONGODB_USERNAME: admin
+        MONGODB_PASSWORD: password
+        MONGODB_DATABASE: app
       run: go test -v -race -short $(go list ./... | grep -v '/examples/')
 
     - name: Run integration tests with authentication
       env:
         TEST_MONGODB_HOSTS: localhost:27017
-        TEST_MONGODB_USERNAME: testuser
-        TEST_MONGODB_PASSWORD: testpass
-        TEST_MONGODB_DATABASE: testdb
+        TEST_MONGODB_USERNAME: admin
+        TEST_MONGODB_PASSWORD: password
+        TEST_MONGODB_DATABASE: app
       run: make test-integration
 
     - name: Check test results
@@ -125,9 +128,9 @@ jobs:
     - name: Run tests with coverage
       env:
         MONGODB_HOSTS: localhost:27017
-        MONGODB_USERNAME: testuser
-        MONGODB_PASSWORD: testpass
-        MONGODB_DATABASE: testdb
+        MONGODB_USERNAME: admin
+        MONGODB_PASSWORD: password
+        MONGODB_DATABASE: app
       run: go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v '/examples/')
 
     - name: Upload coverage to Codecov

@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"reflect"
 	"testing"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -195,15 +196,6 @@ func TestExistenceOperators(t *testing.T) {
 
 // Helper function to compare BSON documents
 func equalBSON(a, b bson.M) bool {
-	aBytes, err := bson.Marshal(a)
-	if err != nil {
-		return false
-	}
-
-	bBytes, err := bson.Marshal(b)
-	if err != nil {
-		return false
-	}
-
-	return string(aBytes) == string(bBytes)
+	// Use deep equality check for robust comparison
+	return reflect.DeepEqual(a, b)
 }

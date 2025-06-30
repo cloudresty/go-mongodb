@@ -1,5 +1,10 @@
 .vscode/
 bin/
+test-results/
+
+# Test coverage files
+coverage.out
+coverage.html
 
 # Debug/temporary test files
 debug_config_test.go

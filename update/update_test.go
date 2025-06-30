@@ -1,6 +1,7 @@
 package update
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -267,15 +268,6 @@ func TestSetOnInsert(t *testing.T) {
 
 // Helper function to compare BSON documents
 func equalBSON(a, b bson.M) bool {
-	aBytes, err := bson.Marshal(a)
-	if err != nil {
-		return false
-	}
-
-	bBytes, err := bson.Marshal(b)
-	if err != nil {
-		return false
-	}
-
-	return string(aBytes) == string(bBytes)
+	// Use deep equality check for robust comparison
+	return reflect.DeepEqual(a, b)
 }

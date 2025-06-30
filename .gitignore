@@ -1,0 +1,6 @@
+.vscode/
+bin/
+
+# Debug/temporary test files
+debug_config_test.go
+*_debug_test.go

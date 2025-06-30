@@ -1,0 +1,152 @@
+name: CI
+
+# This CI workflow runs all tests with MongoDB authentication.
+# The examples/ folder is excluded from all test runs.
+# MongoDB runs with authentication enabled (admin/password + testuser/testpass).
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:8
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password
+        ports:
+          - 27017:27017
+
+    strategy:
+      matrix:
+        go-version: [1.23, 1.24]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Format check
+      run: |
+        go fmt ./...
+        git diff --exit-code
+
+    - name: Vet
+      run: go vet $(go list ./... | grep -v '/examples/')
+
+    - name: Wait for MongoDB
+      run: |
+        timeout 60 bash -c 'until nc -z localhost 27017; do sleep 1; done'
+
+    - name: Set up MongoDB test environment
+      run: |
+        # Wait a bit more for MongoDB to be fully ready
+        sleep 5
+
+    - name: Verify MongoDB is ready
+      run: |
+        echo "Verifying MongoDB is accessible..."
+        nc -z localhost 27017 && echo "MongoDB port is accessible" || exit 1
+
+    - name: Create test database user
+      run: |
+        echo "Creating test database user..."
+        docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username admin --password password --authenticationDatabase admin --eval "
+          try {
+            db.getSiblingDB('admin').createUser({
+              user: 'testuser',
+              pwd: 'testpass',
+              roles: [
+                { role: 'readWrite', db: 'testdb' },
+                { role: 'dbAdmin', db: 'testdb' },
+                { role: 'readWrite', db: 'app' },
+                { role: 'dbAdmin', db: 'app' }
+              ]
+            });
+            print('User testuser created successfully');
+          } catch(e) {
+            if (e.code === 51003) {
+              print('User testuser already exists');
+            } else {
+              throw e;
+            }
+          }"
+
+    - name: Run unit tests
+      env:
+        MONGODB_HOSTS: localhost:27017
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
+        MONGODB_DATABASE: testdb
+      run: go test -v -race -short $(go list ./... | grep -v '/examples/')
+
+    - name: Run integration tests with authentication
+      env:
+        TEST_MONGODB_HOSTS: localhost:27017
+        TEST_MONGODB_USERNAME: testuser
+        TEST_MONGODB_PASSWORD: testpass
+        TEST_MONGODB_DATABASE: testdb
+      run: make test-integration
+
+    - name: Check test results
+      if: always()
+      run: make test-status
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-go-${{ matrix.go-version }}
+        path: test-results/
+
+    - name: Run tests with coverage
+      env:
+        MONGODB_HOSTS: localhost:27017
+        MONGODB_USERNAME: testuser
+        MONGODB_PASSWORD: testpass
+        MONGODB_DATABASE: testdb
+      run: go test -v -race -coverprofile=coverage.out $(go list ./... | grep -v '/examples/')
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.out
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.24
+
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        args: --out-format=colored-line-number --skip-dirs=examples

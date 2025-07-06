@@ -84,6 +84,7 @@ log.Printf("[%s] Service started successfully", client.Name())
 | `MONGODB_REPLICA_SET` | `""` | Replica set name |
 | `MONGODB_CONNECTION_NAME` | `""` | Connection identifier |
 | `MONGODB_APP_NAME` | `go-mongodb-app` | Application name for MongoDB logs |
+| `MONGODB_DIRECT_CONNECTION` | `false` | Enable direct connection mode (bypasses replica set discovery) |
 
 🔝 [back to top](#environment-configuration)
 
@@ -215,6 +216,7 @@ MONGODB_CONNECT_TIMEOUT=15s
 MONGODB_COMPRESSION_ENABLED=true
 MONGODB_COMPRESSION_ALGORITHM=zstd
 MONGODB_READ_PREFERENCE=primaryPreferred
+MONGODB_DIRECT_CONNECTION=false
 ```
 
 🔝 [back to top](#environment-configuration)
@@ -239,6 +241,7 @@ services:
       MONGODB_USERNAME: app_user
       MONGODB_PASSWORD: secure_password
       MONGODB_CONNECTION_NAME: my-app-instance
+      MONGODB_DIRECT_CONNECTION: false
     depends_on:
       - mongodb
 

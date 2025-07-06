@@ -37,6 +37,7 @@ We've crafted this API to be powerful, consistent, and idiomatically Go. You'll 
 | `WithMinPoolSize(size int)` | Sets minimum connection pool size |
 | `WithTimeout(duration time.Duration)` | Sets default operation timeout |
 | `WithReplicaSet(name string)` | Sets replica set name |
+| `WithDirectConnection(enabled bool)` | Enables direct connection mode (bypasses replica set discovery) |
 | `WithTLS(enabled bool)` | Enables or disables TLS |
 
 🔝 [back to top](#api-reference)

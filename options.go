@@ -151,6 +151,14 @@ func WithConnectionName(name string) Option {
 	}
 }
 
+// WithDirectConnection enables or disables direct connection mode
+// When enabled, connects directly to a single MongoDB instance without replica set discovery
+func WithDirectConnection(enabled bool) Option {
+	return func(c *Config) {
+		c.DirectConnection = enabled
+	}
+}
+
 // ReadPreference represents MongoDB read preference options
 type ReadPreference string
 

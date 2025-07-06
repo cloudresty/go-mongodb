@@ -64,6 +64,7 @@ The go-mongodb package supports comprehensive configuration through environment 
 | `MONGODB_REPLICA_SET` | Replica set name | _(none)_ | `rs0` |
 | `MONGODB_READ_PREFERENCE` | Read preference | `primary` | `secondaryPreferred` |
 | `MONGODB_WRITE_CONCERN` | Write concern | `majority` | `1` |
+| `MONGODB_DIRECT_CONNECTION` | Force direct connection (bypass topology discovery) | `false` | `true` |
 
 🔝 [back to top](#environment-variables)
 
@@ -159,6 +160,7 @@ MONGODB_DATABASE=myapp
 MONGODB_TLS=true
 MONGODB_AUTH_DATABASE=admin
 MONGODB_APP_NAME=myapp-cloud
+MONGODB_DIRECT_CONNECTION=true
 ```
 
 🔝 [back to top](#environment-variables)
@@ -213,9 +215,11 @@ client, err := mongodb.NewClient(
 ```
 
 This will look for variables like:
+
 - `MYAPP_MONGODB_HOSTS`
 - `MYAPP_MONGODB_DATABASE`
 - `MYAPP_MONGODB_USERNAME`
+- `MYAPP_MONGODB_DIRECT_CONNECTION`
 - etc.
 
 🔝 [back to top](#environment-variables)

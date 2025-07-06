@@ -91,6 +91,7 @@ type Config struct {
 	ReadPreference       string `env:"MONGODB_READ_PREFERENCE,default=primary"`
 	WriteConcern         string `env:"MONGODB_WRITE_CONCERN,default=majority"`
 	ReadConcern          string `env:"MONGODB_READ_CONCERN,default=local"`
+	DirectConnection     bool   `env:"MONGODB_DIRECT_CONNECTION,default=false"`
 
 	// Application settings
 	AppName        string `env:"MONGODB_APP_NAME,default=go-mongodb-app"`
@@ -151,6 +152,11 @@ func (c *Config) BuildConnectionURI() string {
 	// Add read preference if not default
 	if c.ReadPreference != "" && c.ReadPreference != "primary" {
 		params = append(params, fmt.Sprintf("readPreference=%s", c.ReadPreference))
+	}
+
+	// Add direct connection if enabled
+	if c.DirectConnection {
+		params = append(params, "directConnection=true")
 	}
 
 	// Add query string if we have parameters

@@ -119,6 +119,7 @@ const (
 	EnvMongoDBReadPreference       = "MONGODB_READ_PREFERENCE"
 	EnvMongoDBWriteConcern         = "MONGODB_WRITE_CONCERN"
 	EnvMongoDBReadConcern          = "MONGODB_READ_CONCERN"
+	EnvMongoDBDirectConnection     = "MONGODB_DIRECT_CONNECTION"
 	EnvMongoDBAppName              = "MONGODB_APP_NAME"
 	EnvMongoDBConnectionName       = "MONGODB_CONNECTION_NAME"
 	EnvMongoDBIDMode               = "MONGODB_ID_MODE"

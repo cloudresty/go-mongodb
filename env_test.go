@@ -180,9 +180,8 @@ func TestBuildConnectionURI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create client with config to test URI building
-			client := &Client{config: tt.config}
-			result := client.buildConnectionURI()
+			// Test URI building using the Config method
+			result := tt.config.BuildConnectionURI()
 			if result != tt.expected {
 				t.Errorf("Expected URI '%s', got '%s'", tt.expected, result)
 			}

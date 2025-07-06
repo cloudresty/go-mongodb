@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"strings"
 	"sync"
 	"time"
 
@@ -107,9 +108,6 @@ type Config struct {
 
 // BuildConnectionURI constructs a MongoDB connection URI from configuration components
 func (c *Config) BuildConnectionURI() string {
-	// Always build URI from components using the priority order:
-	// 1. Code defaults 2. Code defaults + env vars 3. All env vars override defaults
-
 	// Build URI from components
 	uri := "mongodb://"
 
@@ -154,8 +152,8 @@ func (c *Config) BuildConnectionURI() string {
 		params = append(params, fmt.Sprintf("readPreference=%s", c.ReadPreference))
 	}
 
-	// Add direct connection if enabled
-	if c.DirectConnection {
+	// Add direct connection ONLY if enabled AND we have a single host
+	if c.DirectConnection && c.isSingleHost() {
 		params = append(params, "directConnection=true")
 	}
 
@@ -337,8 +335,8 @@ func (c *Client) connect() error {
 func (c *Client) buildClientOptions() *options.ClientOptions {
 	opts := options.Client()
 
-	// Always build URI from components with priority-based configuration
-	uri := c.buildConnectionURI()
+	// Use the Config's BuildConnectionURI method which includes direct connection logic
+	uri := c.config.BuildConnectionURI()
 	opts.ApplyURI(uri)
 
 	// Connection pool settings
@@ -377,42 +375,25 @@ func (c *Client) buildClientOptions() *options.ClientOptions {
 	return opts
 }
 
-// buildConnectionURI constructs a MongoDB connection URI from configuration components
-func (c *Client) buildConnectionURI() string {
-	uri := "mongodb://"
-
-	if c.config.Username != "" && c.config.Password != "" {
-		uri += fmt.Sprintf("%s:%s@", c.config.Username, c.config.Password)
+// isSingleHost checks if the configuration specifies only a single host
+// This is used to determine if directConnection=true should be applied
+func (c *Config) isSingleHost() bool {
+	if c.Hosts == "" {
+		return false
 	}
 
-	// Use MONGODB_HOSTS (comma-separated hosts supported)
-	if c.config.Hosts != "" {
-		uri += c.config.Hosts
-	} else {
-		// This shouldn't happen due to defaults, but just in case
-		uri += "localhost:27017"
+	// Split by comma and check if we have exactly one host
+	hosts := strings.Split(strings.TrimSpace(c.Hosts), ",")
+
+	// Count non-empty hosts after trimming whitespace
+	validHosts := 0
+	for _, host := range hosts {
+		if strings.TrimSpace(host) != "" {
+			validHosts++
+		}
 	}
 
-	// Add database path if specified
-	if c.config.Database != "" {
-		uri += "/" + c.config.Database
-	}
-
-	params := []string{}
-
-	if c.config.AuthDatabase != "" {
-		params = append(params, fmt.Sprintf("authSource=%s", c.config.AuthDatabase))
-	}
-
-	if c.config.ReplicaSet != "" {
-		params = append(params, fmt.Sprintf("replicaSet=%s", c.config.ReplicaSet))
-	}
-
-	if len(params) > 0 {
-		uri += "?" + joinParams(params)
-	}
-
-	return uri
+	return validHosts == 1
 }
 
 // joinParams joins URL parameters

@@ -80,6 +80,7 @@ build: ## Build examples
 	go build -o bin/transactions examples/transactions/main.go
 	go build -o bin/ulid-demo examples/ulid-demo/main.go
 	go build -o bin/reconnection-test examples/reconnection-test/main.go
+	go build -o bin/direct-connection examples/direct-connection/main.go
 
 clean: ## Clean build artifacts
 	rm -rf bin/
@@ -131,6 +132,9 @@ run-ulid-demo: ## Run ULID demonstration example
 
 run-reconnection-test: ## Run auto-reconnection test example
 	go run examples/reconnection-test/main.go
+
+run-direct-connection: ## Run direct connection example
+	go run examples/direct-connection/main.go
 
 # CI
 ci: tidy fmt vet test-integration ## Run CI pipeline with authentication

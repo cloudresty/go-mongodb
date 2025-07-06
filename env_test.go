@@ -9,13 +9,14 @@ import (
 func TestLoadFromEnv(t *testing.T) {
 	// Save current environment variables that we'll modify
 	envVars := map[string]string{
-		"MONGODB_HOSTS":           "localhost:27017",
-		"MONGODB_USERNAME":        "admin",
-		"MONGODB_PASSWORD":        "password",
-		"MONGODB_DATABASE":        "testdb",
-		"MONGODB_AUTH_DATABASE":   "admin",
-		"MONGODB_MAX_POOL_SIZE":   "50",
-		"MONGODB_CONNECT_TIMEOUT": "10s",
+		"MONGODB_HOSTS":             "localhost:27017",
+		"MONGODB_USERNAME":          "admin",
+		"MONGODB_PASSWORD":          "password",
+		"MONGODB_DATABASE":          "testdb",
+		"MONGODB_AUTH_DATABASE":     "admin",
+		"MONGODB_MAX_POOL_SIZE":     "50",
+		"MONGODB_CONNECT_TIMEOUT":   "10s",
+		"MONGODB_DIRECT_CONNECTION": "true", // Add direct connection to fix replica set issues
 	}
 
 	savedValues := make(map[string]string)
@@ -75,11 +76,12 @@ func TestLoadFromEnv(t *testing.T) {
 func TestLoadFromEnvWithPrefix(t *testing.T) {
 	// Set test environment variables with custom prefix
 	envVars := map[string]string{
-		"MYAPP_MONGODB_HOSTS":         "localhost:27017",
-		"MYAPP_MONGODB_USERNAME":      "admin",
-		"MYAPP_MONGODB_PASSWORD":      "password",
-		"MYAPP_MONGODB_DATABASE":      "prefixdb",
-		"MYAPP_MONGODB_AUTH_DATABASE": "admin",
+		"MYAPP_MONGODB_HOSTS":             "localhost:27017",
+		"MYAPP_MONGODB_USERNAME":          "admin",
+		"MYAPP_MONGODB_PASSWORD":          "password",
+		"MYAPP_MONGODB_DATABASE":          "prefixdb",
+		"MYAPP_MONGODB_AUTH_DATABASE":     "admin",
+		"MYAPP_MONGODB_DIRECT_CONNECTION": "true", // Add direct connection to fix replica set issues
 	}
 
 	savedValues := make(map[string]string)

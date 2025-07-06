@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -331,6 +332,166 @@ func TestShutdownManagerNewInterface(t *testing.T) {
 
 	// Clean up
 	_ = client.Close()
+}
+
+// Direct Connection tests
+
+func TestDirectConnectionConfiguration(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        *Config
+		expectedInURI bool
+		expectedValue bool
+	}{
+		{
+			name: "Direct connection enabled",
+			config: &Config{
+				Hosts:            "localhost:27017",
+				Database:         "test",
+				DirectConnection: true,
+			},
+			expectedInURI: true,
+			expectedValue: true,
+		},
+		{
+			name: "Direct connection disabled (default)",
+			config: &Config{
+				Hosts:            "localhost:27017",
+				Database:         "test",
+				DirectConnection: false,
+			},
+			expectedInURI: false,
+			expectedValue: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			uri := tt.config.BuildConnectionURI()
+
+			if tt.expectedInURI {
+				if !contains(uri, "directConnection=true") {
+					t.Errorf("Expected URI to contain 'directConnection=true', got: %s", uri)
+				}
+			} else {
+				if contains(uri, "directConnection") {
+					t.Errorf("Expected URI to not contain 'directConnection', got: %s", uri)
+				}
+			}
+
+			// Verify config value
+			if tt.config.DirectConnection != tt.expectedValue {
+				t.Errorf("Expected DirectConnection to be %v, got %v", tt.expectedValue, tt.config.DirectConnection)
+			}
+		})
+	}
+}
+
+func TestWithDirectConnectionOption(t *testing.T) {
+	tests := []struct {
+		name     string
+		enabled  bool
+		expected bool
+	}{
+		{
+			name:     "Enable direct connection",
+			enabled:  true,
+			expected: true,
+		},
+		{
+			name:     "Disable direct connection",
+			enabled:  false,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &Config{}
+			option := WithDirectConnection(tt.enabled)
+			option(config)
+
+			if config.DirectConnection != tt.expected {
+				t.Errorf("Expected DirectConnection to be %v, got %v", tt.expected, config.DirectConnection)
+			}
+		})
+	}
+}
+
+func TestDirectConnectionEnvironmentVariable(t *testing.T) {
+	// Save original environment
+	originalValue := os.Getenv("MONGODB_DIRECT_CONNECTION")
+	defer func() {
+		if originalValue == "" {
+			os.Unsetenv("MONGODB_DIRECT_CONNECTION")
+		} else {
+			os.Setenv("MONGODB_DIRECT_CONNECTION", originalValue)
+		}
+	}()
+
+	tests := []struct {
+		name        string
+		envValue    string
+		expected    bool
+		shouldError bool
+	}{
+		{
+			name:     "DirectConnection enabled via env",
+			envValue: "true",
+			expected: true,
+		},
+		{
+			name:     "DirectConnection disabled via env",
+			envValue: "false",
+			expected: false,
+		},
+		{
+			name:     "DirectConnection not set (default)",
+			envValue: "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable
+			if tt.envValue == "" {
+				os.Unsetenv("MONGODB_DIRECT_CONNECTION")
+			} else {
+				os.Setenv("MONGODB_DIRECT_CONNECTION", tt.envValue)
+			}
+
+			// Load config from environment
+			config, err := loadConfigFromEnv("")
+			if tt.shouldError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			// Check DirectConnection value
+			if config.DirectConnection != tt.expected {
+				t.Errorf("Expected DirectConnection to be %v, got %v", tt.expected, config.DirectConnection)
+			}
+
+			// Check URI generation
+			uri := config.BuildConnectionURI()
+			if tt.expected {
+				if !contains(uri, "directConnection=true") {
+					t.Errorf("Expected URI to contain 'directConnection=true', got: %s", uri)
+				}
+			} else {
+				if contains(uri, "directConnection") {
+					t.Errorf("Expected URI to not contain 'directConnection', got: %s", uri)
+				}
+			}
+		})
+	}
 }
 
 // Error handling tests

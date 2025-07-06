@@ -32,6 +32,7 @@
 //   - MONGODB_HEALTH_CHECK_ENABLED: Enable health checks (default: true)
 //   - MONGODB_COMPRESSION_ENABLED: Enable compression (default: true)
 //   - MONGODB_READ_PREFERENCE: Read preference (default: primary)
+//   - MONGODB_DIRECT_CONNECTION: Enable direct connection mode (default: false)
 //   - MONGODB_APP_NAME: Application name for connection metadata
 //   - MONGODB_LOG_LEVEL: Logging level (default: info)
 //

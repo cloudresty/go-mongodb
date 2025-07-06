@@ -332,3 +332,115 @@ func TestShutdownManagerNewInterface(t *testing.T) {
 	// Clean up
 	_ = client.Close()
 }
+
+// Error handling tests
+
+func TestIsNotFoundError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "mongo.ErrNoDocuments",
+			err:      mongo.ErrNoDocuments,
+			expected: true,
+		},
+		{
+			name:     "NamespaceNotFound command error",
+			err:      mongo.CommandError{Code: 26, Message: "namespace not found"},
+			expected: true,
+		},
+		{
+			name:     "InvalidNamespace command error",
+			err:      mongo.CommandError{Code: 73, Message: "invalid namespace"},
+			expected: true,
+		},
+		{
+			name:     "Other command error",
+			err:      mongo.CommandError{Code: 11000, Message: "duplicate key"},
+			expected: false,
+		},
+		{
+			name:     "Generic not found error message",
+			err:      &customError{msg: "document not found"},
+			expected: true,
+		},
+		{
+			name:     "Does not exist error message",
+			err:      &customError{msg: "collection does not exist"},
+			expected: true,
+		},
+		{
+			name:     "No documents error message",
+			err:      &customError{msg: "no documents found"},
+			expected: true,
+		},
+		{
+			name:     "Namespace not found error message",
+			err:      &customError{msg: "namespace not found"},
+			expected: true,
+		},
+		{
+			name:     "Unrelated error",
+			err:      &customError{msg: "connection timeout"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsNotFoundError(tt.err)
+			if result != tt.expected {
+				t.Errorf("IsNotFoundError(%v) = %v, expected %v", tt.err, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsNotFoundErrorIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client, err := NewClient(FromEnv())
+	if err != nil {
+		t.Skipf("Could not create client: %v", err)
+	}
+	defer func() {
+		_ = client.Close()
+	}()
+	// Test actual not found error from FindOne
+	collection := client.Database("testdb").Collection("nonexistent")
+
+	var result bson.M
+	err = collection.FindOne(context.Background(), filter.Eq("_id", "nonexistent")).Decode(&result)
+
+	if err == nil {
+		t.Error("Expected error when finding nonexistent document")
+		return
+	}
+
+	if !IsNotFoundError(err) {
+		t.Errorf("Expected IsNotFoundError to return true for FindOne error: %v", err)
+	}
+
+	// Verify it's specifically mongo.ErrNoDocuments
+	if err != mongo.ErrNoDocuments {
+		t.Errorf("Expected mongo.ErrNoDocuments, got: %v", err)
+	}
+}
+
+// Helper type for testing custom error messages
+type customError struct {
+	msg string
+}
+
+func (e *customError) Error() string {
+	return e.msg
+}

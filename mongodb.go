@@ -474,6 +474,33 @@ func IsNetworkError(err error) bool {
 	return contains(errStr, "connection") || contains(errStr, "network") || contains(errStr, "timeout")
 }
 
+// IsNotFoundError checks if an error indicates that a document, collection, or database was not found
+func IsNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check for the standard MongoDB "no documents" error
+	if err == mongo.ErrNoDocuments {
+		return true
+	}
+
+	// Check for MongoDB command errors related to not found
+	if cmdErr, ok := err.(mongo.CommandError); ok {
+		// Common MongoDB error codes for "not found" scenarios:
+		// 26 = NamespaceNotFound (collection/database doesn't exist)
+		// 73 = InvalidNamespace (invalid collection/database name)
+		return cmdErr.Code == 26 || cmdErr.Code == 73
+	}
+
+	// Check error message for common "not found" patterns
+	errStr := err.Error()
+	return contains(errStr, "not found") ||
+		contains(errStr, "does not exist") ||
+		contains(errStr, "no documents") ||
+		contains(errStr, "namespace not found")
+}
+
 // contains checks if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
 	if len(substr) == 0 {

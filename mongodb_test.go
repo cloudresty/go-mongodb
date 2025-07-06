@@ -605,3 +605,107 @@ type customError struct {
 func (e *customError) Error() string {
 	return e.msg
 }
+
+func TestDirectConnectionWithExistingAuth(t *testing.T) {
+	tests := []struct {
+		name                          string
+		hosts                         string
+		username                      string
+		password                      string
+		database                      string
+		authDatabase                  string
+		directConn                    bool
+		shouldContainDirectConnection bool
+	}{
+		{
+			name:                          "Single host with auth and direct connection enabled",
+			hosts:                         "localhost:27017",
+			username:                      "admin",
+			password:                      "password",
+			database:                      "media_agenda",
+			authDatabase:                  "admin",
+			directConn:                    true,
+			shouldContainDirectConnection: true,
+		},
+		{
+			name:                          "Multiple hosts with auth and direct connection enabled (should not add directConnection)",
+			hosts:                         "localhost:27017,localhost:27018",
+			username:                      "admin",
+			password:                      "password",
+			database:                      "media_agenda",
+			authDatabase:                  "admin",
+			directConn:                    true,
+			shouldContainDirectConnection: false,
+		},
+		{
+			name:                          "Single host with auth and direct connection disabled",
+			hosts:                         "localhost:27017",
+			username:                      "admin",
+			password:                      "password",
+			database:                      "media_agenda",
+			authDatabase:                  "admin",
+			directConn:                    false,
+			shouldContainDirectConnection: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &Config{
+				Hosts:            tt.hosts,
+				Username:         tt.username,
+				Password:         tt.password,
+				Database:         tt.database,
+				AuthDatabase:     tt.authDatabase,
+				DirectConnection: tt.directConn,
+			}
+
+			actualURI := config.BuildConnectionURI()
+
+			// Check if directConnection parameter is present when expected
+			containsDirectConnection := contains(actualURI, "directConnection=true")
+
+			if containsDirectConnection != tt.shouldContainDirectConnection {
+				t.Errorf("Expected directConnection=true in URI: %v, got: %v\nURI: %s",
+					tt.shouldContainDirectConnection, containsDirectConnection, actualURI)
+			}
+
+			// Should always contain auth parameters when credentials are provided
+			if !contains(actualURI, "authSource="+tt.authDatabase) {
+				t.Errorf("Expected URI to contain authSource=%s, got: %s", tt.authDatabase, actualURI)
+			}
+		})
+	}
+}
+
+func TestDirectConnectionEnvironmentVariableWithAuth(t *testing.T) {
+	// Test with individual environment variables instead of full URI
+	t.Setenv("MONGODB_HOSTS", "localhost:27017")
+	t.Setenv("MONGODB_USERNAME", "admin")
+	t.Setenv("MONGODB_PASSWORD", "password")
+	t.Setenv("MONGODB_DATABASE", "media_agenda")
+	t.Setenv("MONGODB_AUTH_DATABASE", "admin")
+	t.Setenv("MONGODB_DIRECT_CONNECTION", "true")
+
+	config, err := loadConfigFromEnv("")
+	if err != nil {
+		t.Fatalf("Failed to load config from env: %v", err)
+	}
+
+	actualURI := config.BuildConnectionURI()
+
+	// Check that directConnection=true is present for single host
+	if !contains(actualURI, "directConnection=true") {
+		t.Errorf("Expected URI to contain 'directConnection=true', got: %s", actualURI)
+	}
+
+	// Check that auth parameters are present
+	if !contains(actualURI, "authSource=admin") {
+		t.Errorf("Expected URI to contain 'authSource=admin', got: %s", actualURI)
+	}
+
+	// Check that credentials are present
+	if !contains(actualURI, "admin:password@") {
+		t.Errorf("Expected URI to contain credentials, got: %s", actualURI)
+	}
+}

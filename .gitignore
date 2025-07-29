@@ -9,3 +9,15 @@ coverage.html
 # Debug/temporary test files
 debug_config_test.go
 *_debug_test.go
+
+# Example binary executables - generated during build
+examples/*/basic-client
+examples/*/custom-logger-emit
+examples/*/direct-connection
+examples/*/env-config
+examples/*/id-modes
+examples/*/modern-api-complete
+examples/*/modern-api
+examples/*/reconnection-test
+examples/*/transactions
+examples/*/ulid-demo

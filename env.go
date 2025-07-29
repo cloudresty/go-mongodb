@@ -23,6 +23,11 @@ func loadConfigFromEnv(prefix string) (*Config, error) {
 		return nil, fmt.Errorf("failed to load environment config: %w", err)
 	}
 
+	// Set default logger if none provided
+	if config.Logger == nil {
+		config.Logger = NopLogger{}
+	}
+
 	// Validate the final configuration
 	if err := validateConfig(config); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)

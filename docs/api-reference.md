@@ -39,6 +39,32 @@ We've crafted this API to be powerful, consistent, and idiomatically Go. You'll 
 | `WithReplicaSet(name string)` | Sets replica set name |
 | `WithDirectConnection(enabled bool)` | Enables direct connection mode (bypasses replica set discovery) |
 | `WithTLS(enabled bool)` | Enables or disables TLS |
+| `WithLogger(logger Logger)` | Sets a custom logger implementation (defaults to NopLogger - silent) |
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+### Logger Interface
+
+The `Logger` interface allows you to integrate your preferred logging solution with the MongoDB client for internal operation logging.
+
+```go
+type Logger interface {
+    Info(msg string, fields ...any)
+    Warn(msg string, fields ...any)
+    Error(msg string, fields ...any)
+    Debug(msg string, fields ...any)
+}
+```
+
+**Default behavior**: If no logger is provided via `WithLogger()`, the client uses `NopLogger` (silent - no output).
+
+**Usage patterns**:
+
+- Fields are provided as alternating key-value pairs: `logger.Info("message", "key1", value1, "key2", value2)`
+- Supported field types: `string`, `int`, `int64`, `time.Duration`, `bool`, `error`
+- See [Custom Logging Example](../examples/custom-logger-emit/) for `emit` library integration
 
 🔝 [back to top](#api-reference)
 
@@ -375,6 +401,6 @@ We've crafted this API to be powerful, consistent, and idiomatically Go. You'll 
 
 An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
 
-[Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty)
+[Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
 
 &nbsp;

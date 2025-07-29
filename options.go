@@ -160,6 +160,14 @@ func WithDirectConnection(enabled bool) Option {
 	}
 }
 
+// WithLogger sets a custom logger implementation for the MongoDB client
+// If not provided, the client will use a NopLogger that produces no output
+func WithLogger(logger Logger) Option {
+	return func(c *Config) {
+		c.Logger = logger
+	}
+}
+
 // ReadPreference represents MongoDB read preference options
 type ReadPreference string
 

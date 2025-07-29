@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudresty/emit"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -78,12 +77,12 @@ func (c *Client) WithTransaction(ctx context.Context, fn func(context.Context) (
 
 	result, err := session.WithTransaction(ctx, callback, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Transaction failed",
-			emit.ZString("error", err.Error()))
+		c.config.Logger.Error("Transaction failed",
+			"error", err.Error())
 		return nil, fmt.Errorf("transaction failed: %w", err)
 	}
 
-	emit.Debug.Msg("Transaction completed successfully")
+	c.config.Logger.Debug("Transaction completed successfully")
 	return result, nil
 }
 
@@ -143,14 +142,14 @@ func (c *Client) DropDatabase(ctx context.Context) error {
 
 	err := database.Drop(ctx)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to drop database",
-			emit.ZString("database", c.config.Database),
-			emit.ZString("error", err.Error()))
+		c.config.Logger.Error("Failed to drop database",
+			"database", c.config.Database,
+			"error", err.Error())
 		return fmt.Errorf("failed to drop database: %w", err)
 	}
 
-	emit.Info.StructuredFields("Database dropped successfully",
-		emit.ZString("database", c.config.Database))
+	c.config.Logger.Info("Database dropped successfully",
+		"database", c.config.Database)
 
 	return nil
 }

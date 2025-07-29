@@ -136,6 +136,39 @@ export MONGODB_CONNECTION_NAME=my-service
 
 &nbsp;
 
+### Pluggable Logging
+
+The library is **silent by default** (zero-allocation) but supports pluggable logging for any framework:
+
+```go
+// Silent by default - no logging output
+client, err := mongodb.NewClient()
+
+// Integrate with your logging framework
+client, err := mongodb.NewClient(
+    mongodb.WithLogger(YourLoggerAdapter{}),
+)
+```
+
+**Standard Logger Example:**
+```go
+type StandardLoggerAdapter struct {
+    logger *log.Logger
+}
+
+func (s StandardLoggerAdapter) Info(msg string, fields ...any) {
+    s.logger.Printf("INFO: %s %v", msg, fields)
+}
+// ... implement Warn, Error, Debug methods
+```
+
+**Emit Logger Example:**
+See `examples/custom-logger-emit/` for a complete integration with [cloudresty/emit](https://github.com/cloudresty/emit).
+
+🔝 [back to top](#go-mongodb)
+
+&nbsp;
+
 ## Documentation
 
 | Document | Description |
@@ -209,12 +242,6 @@ func main() {
         log.Fatal(err)
     }
     defer client.Close()
-
-    // Or configure with custom logger (silent by default)
-    // client, err := mongodb.NewClient(
-    //     mongodb.FromEnv(),
-    //     mongodb.WithLogger(yourCustomLogger), // Implement mongodb.Logger interface
-    // )
 
     // Health checks and monitoring - use Ping to verify connectivity
     if err := client.Ping(context.Background()); err != nil {

@@ -9,7 +9,7 @@
 //   - Environment-first configuration using cloudresty/go-env
 //   - ULID-based document IDs for better performance and sorting
 //   - Auto-reconnection with intelligent retry and exponential backoff
-//   - Zero-allocation logging with cloudresty/emit
+//   - Pluggable logging interface with silent default (zero-allocation)
 //   - Production-ready features (graceful shutdown, health checks, metrics)
 //   - Simple, intuitive function names following Go best practices
 //   - Comprehensive error handling and logging

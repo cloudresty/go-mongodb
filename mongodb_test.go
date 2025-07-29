@@ -63,7 +63,7 @@ func TestCollectionOperations(t *testing.T) {
 	}
 	defer func() {
 		// Add a small delay to let any in-flight logging complete
-		// This helps avoid race conditions in the emit library's timestamp code
+		// This helps avoid race conditions in concurrent logging operations
 		time.Sleep(10 * time.Millisecond)
 		_ = client.Close() // Ignore error during cleanup
 	}()

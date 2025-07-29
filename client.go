@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cloudresty/emit"
 	"github.com/cloudresty/ulid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -104,6 +103,7 @@ type Config struct {
 	// Logging
 	LogLevel  string `env:"MONGODB_LOG_LEVEL,default=info"`
 	LogFormat string `env:"MONGODB_LOG_FORMAT,default=json"`
+	Logger    Logger // Pluggable logger interface, defaults to NopLogger if not provided
 }
 
 // BuildConnectionURI constructs a MongoDB connection URI from configuration components
@@ -242,6 +242,7 @@ func NewClient(opts ...Option) (*Client, error) {
 		MinPoolSize:  5,
 		AppName:      "go-mongodb-app",
 		IDMode:       IDModeULID,
+		Logger:       NopLogger{}, // Default to no-op logger
 	}
 
 	// Apply all options
@@ -277,10 +278,15 @@ func NewClientWithConfig(config *Config) (*Client, error) {
 		return nil, fmt.Errorf("config cannot be nil")
 	}
 
-	emit.Info.StructuredFields("Creating new MongoDB client",
-		emit.ZString("hosts", config.Hosts),
-		emit.ZString("database", config.Database),
-		emit.ZString("app_name", config.AppName))
+	// Set default logger if none provided
+	if config.Logger == nil {
+		config.Logger = NopLogger{}
+	}
+
+	config.Logger.Info("Creating new MongoDB client",
+		"hosts", config.Hosts,
+		"database", config.Database,
+		"app_name", config.AppName)
 
 	client := &Client{
 		config:       config,
@@ -295,10 +301,10 @@ func NewClientWithConfig(config *Config) (*Client, error) {
 		client.startHealthCheck()
 	}
 
-	emit.Info.StructuredFields("MongoDB client initialized successfully",
-		emit.ZString("hosts", config.Hosts),
-		emit.ZString("database", config.Database),
-		emit.ZString("app_name", config.AppName))
+	config.Logger.Info("MongoDB client initialized successfully",
+		"hosts", config.Hosts,
+		"database", config.Database,
+		"app_name", config.AppName)
 
 	return client, nil
 }
@@ -434,15 +440,15 @@ func (c *Client) performHealthCheck() {
 	c.mutex.RUnlock()
 
 	if client == nil {
-		emit.Warn.Msg("Health check: client is nil, attempting reconnect")
+		c.config.Logger.Warn("Health check: client is nil, attempting reconnect")
 		go c.attemptReconnect()
 		return
 	}
 
 	start := time.Now()
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-		emit.Warn.StructuredFields("Health check failed, attempting reconnect",
-			emit.ZString("error", err.Error()))
+		c.config.Logger.Warn("Health check failed, attempting reconnect",
+			"error", err.Error())
 		c.mutex.Lock()
 		c.isConnected = false
 		c.mutex.Unlock()
@@ -453,14 +459,14 @@ func (c *Client) performHealthCheck() {
 
 	latency := time.Since(start)
 
-	emit.Debug.StructuredFields("Health check passed",
-		emit.ZDuration("latency", latency))
+	c.config.Logger.Debug("Health check passed",
+		"latency", latency)
 }
 
 // attemptReconnect attempts to reconnect to MongoDB with exponential backoff
 func (c *Client) attemptReconnect() {
 	if !c.config.ReconnectEnabled {
-		emit.Warn.Msg("Reconnection is disabled")
+		c.config.Logger.Warn("Reconnection is disabled")
 		return
 	}
 
@@ -478,15 +484,15 @@ func (c *Client) attemptReconnect() {
 	maxAttempts := c.config.MaxReconnectAttempts
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		emit.Info.StructuredFields("Attempting to reconnect to MongoDB",
-			emit.ZInt("attempt", attempt),
-			emit.ZInt("max_attempts", maxAttempts),
-			emit.ZDuration("delay", delay))
+		c.config.Logger.Info("Attempting to reconnect to MongoDB",
+			"attempt", attempt,
+			"max_attempts", maxAttempts,
+			"delay", delay)
 
 		if err := c.connect(); err != nil {
-			emit.Warn.StructuredFields("Reconnection attempt failed",
-				emit.ZInt("attempt", attempt),
-				emit.ZString("error", err.Error()))
+			c.config.Logger.Warn("Reconnection attempt failed",
+				"attempt", attempt,
+				"error", err.Error())
 
 			if attempt < maxAttempts {
 				time.Sleep(delay)
@@ -502,14 +508,14 @@ func (c *Client) attemptReconnect() {
 		c.reconnectCount++
 		c.mutex.Unlock()
 
-		emit.Info.StructuredFields("Successfully reconnected to MongoDB",
-			emit.ZInt("attempt", attempt),
-			emit.ZInt64("total_reconnects", c.reconnectCount))
+		c.config.Logger.Info("Successfully reconnected to MongoDB",
+			"attempt", attempt,
+			"total_reconnects", c.reconnectCount)
 		return
 	}
 
-	emit.Error.StructuredFields("Failed to reconnect to MongoDB after all attempts",
-		emit.ZInt("max_attempts", maxAttempts))
+	c.config.Logger.Error("Failed to reconnect to MongoDB after all attempts",
+		"max_attempts", maxAttempts)
 }
 
 // HealthCheck performs a manual health check and returns detailed status
@@ -572,7 +578,7 @@ func (c *Client) Close() error {
 	var closeErr error
 
 	c.shutdownOnce.Do(func() {
-		emit.Info.Msg("Closing MongoDB client")
+		c.config.Logger.Info("Closing MongoDB client")
 
 		// Stop health check
 		if c.healthTicker != nil {
@@ -589,11 +595,11 @@ func (c *Client) Close() error {
 			defer cancel()
 
 			if err := c.client.Disconnect(ctx); err != nil {
-				emit.Error.StructuredFields("Failed to disconnect MongoDB client",
-					emit.ZString("error", err.Error()))
+				c.config.Logger.Error("Failed to disconnect MongoDB client",
+					"error", err.Error())
 				closeErr = err
 			} else {
-				emit.Info.Msg("MongoDB client disconnected successfully")
+				c.config.Logger.Info("MongoDB client disconnected successfully")
 			}
 		}
 

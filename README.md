@@ -39,7 +39,8 @@ A modern, production-ready Go package for MongoDB operations with environment-fi
 - **ULID IDs**: 6x faster generation, database-optimized, lexicographically sortable
 - **Auto-Reconnection**: Intelligent retry with configurable backoff
 - **Production-Ready**: Graceful shutdown, timeouts, health checks, transaction support
-- **High Performance**: Zero-allocation logging, optimized for throughput
+- **Pluggable Logging**: Silent by default, integrate with any logging framework
+- **High Performance**: Optimized for throughput with efficient ULID generation
 - **Fully Tested**: Comprehensive test coverage with CI/CD pipeline
 
 🔝 [back to top](#go-mongodb)
@@ -183,7 +184,7 @@ Built-in support for high availability, graceful shutdown, automatic reconnectio
 
 ### Performance Optimized
 
-Zero-allocation logging, efficient ULID generation, and optimized for high-throughput scenarios.
+Pluggable logging framework, efficient ULID generation, and optimized for high-throughput scenarios.
 
 🔝 [back to top](#go-mongodb)
 
@@ -208,6 +209,12 @@ func main() {
         log.Fatal(err)
     }
     defer client.Close()
+
+    // Or configure with custom logger (silent by default)
+    // client, err := mongodb.NewClient(
+    //     mongodb.FromEnv(),
+    //     mongodb.WithLogger(yourCustomLogger), // Implement mongodb.Logger interface
+    // )
 
     // Health checks and monitoring - use Ping to verify connectivity
     if err := client.Ping(context.Background()); err != nil {
@@ -278,6 +285,6 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 
 An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
 
-[Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty)
+[Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
 
 &nbsp;

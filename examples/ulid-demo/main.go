@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 
-	"github.com/cloudresty/emit"
 	"github.com/cloudresty/go-mongodb"
 	"github.com/cloudresty/go-mongodb/filter"
 )
@@ -19,12 +19,11 @@ type User struct {
 }
 
 func main() {
-	emit.Info.Msg("Starting ULID demonstration example")
+	log.Println("Starting ULID demonstration example")
 
 	client, err := mongodb.NewClient()
 	if err != nil {
-		emit.Error.StructuredFields("Failed to create client",
-			emit.ZString("error", err.Error()))
+		log.Printf("Failed to create client: %v", err)
 		os.Exit(1)
 	}
 	defer client.Close()
@@ -35,89 +34,95 @@ func main() {
 	// Clean up existing data
 	_, _ = collection.DeleteMany(ctx, filter.New())
 
-	emit.Info.Msg("Demonstrating automatic ULID generation")
+	log.Println("Demonstrating automatic ULID generation")
 
 	// Insert documents and show ULID enhancement
-	for i := range 3 {
-		user := User{
-			Name:  string(rune('A'+i)) + " User", // A User, B User, C User
-			Email: "user" + string(rune('a'+i)) + "@example.com",
-			Index: i,
-		}
+	users := []User{
+		{Name: "Alice Johnson", Email: "alice@example.com", Index: 1},
+		{Name: "Bob Smith", Email: "bob@example.com", Index: 2},
+		{Name: "Carol Davis", Email: "carol@example.com", Index: 3},
+	}
 
-		emit.Info.StructuredFields("Inserting document",
-			emit.ZString("name", user.Name),
-			emit.ZString("email", user.Email))
+	for _, user := range users {
+		log.Printf("Inserting document: %s (%s)", user.Name, user.Email)
 
 		result, err := collection.InsertOne(ctx, user)
 		if err != nil {
-			emit.Error.StructuredFields("Failed to insert document",
-				emit.ZString("error", err.Error()))
+			log.Printf("Failed to insert document: %v", err)
 			continue
 		}
 
-		// Retrieve the inserted document to see ULID enhancement
+		// Retrieve the document to see the generated ULID
 		var insertedUser User
 		err = collection.FindOne(ctx, filter.Eq("_id", result.InsertedID)).Decode(&insertedUser)
 		if err != nil {
-			emit.Error.StructuredFields("Failed to retrieve inserted document",
-				emit.ZString("error", err.Error()))
+			log.Printf("Failed to retrieve inserted document: %v", err)
 			continue
 		}
 
-		// Show the enhanced document with ULID fields
-		emit.Info.StructuredFields("Document enhanced with ULID",
-			emit.ZString("name", insertedUser.Name),
-			emit.ZString("ulid", insertedUser.ULID),
-			emit.ZInt("ulid_length", len(insertedUser.ULID)))
+		log.Printf("Document enhanced with ULID: %s (ULID: %s, Length: %d)",
+			insertedUser.Name, insertedUser.ULID, len(insertedUser.ULID))
 	}
 
-	// Demonstrate querying by ULID
-	emit.Info.Msg("Demonstrating ULID-based queries")
+	// Demonstrate ULID-based queries
+	log.Println("Demonstrating ULID-based queries")
 
-	// Count all documents
+	// Count documents with ULIDs
 	count, err := collection.CountDocuments(ctx, filter.New())
 	if err != nil {
-		emit.Error.StructuredFields("Failed to count documents",
-			emit.ZString("error", err.Error()))
+		log.Printf("Failed to count documents: %v", err)
 	} else {
-		emit.Info.StructuredFields("Total documents with ULIDs",
-			emit.ZInt64("count", count))
+		log.Printf("Total documents with ULIDs: %d", count)
 	}
 
 	// Find all documents and show their ULIDs
 	cursor, err := collection.Find(ctx, filter.New())
 	if err != nil {
-		emit.Error.StructuredFields("Failed to find documents",
-			emit.ZString("error", err.Error()))
-	} else {
-		defer cursor.Close(ctx)
+		log.Printf("Failed to find documents: %v", err)
+		return
+	}
+	defer cursor.Close(ctx)
 
-		var users []User
-		if err = cursor.All(ctx, &users); err != nil {
-			emit.Error.StructuredFields("Failed to decode documents",
-				emit.ZString("error", err.Error()))
-		} else {
-			emit.Info.StructuredFields("Documents found",
-				emit.ZInt("count", len(users)))
+	var users_result []User
+	if err := cursor.All(ctx, &users_result); err != nil {
+		log.Printf("Failed to decode documents: %v", err)
+		return
+	}
 
-			for i, user := range users {
-				emit.Info.StructuredFields("Document",
-					emit.ZInt("position", i+1),
-					emit.ZString("name", user.Name),
-					emit.ZString("ulid", user.ULID))
+	log.Println("All documents with ULIDs:")
+	for _, user := range users_result {
+		log.Printf("- %s (%s): ULID=%s", user.Name, user.Email, user.ULID)
+	}
+
+	// Demonstrate ULID sorting (ULIDs are naturally sortable by creation time)
+	log.Println("Demonstrating ULID time-based ordering:")
+	for i, user := range users_result {
+		log.Printf("%d. %s - ULID: %s", i+1, user.Name, user.ULID)
+	}
+
+	// Example: Find by ULID pattern (first few characters)
+	if len(users_result) > 0 {
+		firstULID := users_result[0].ULID
+		if len(firstULID) >= 4 {
+			prefix := firstULID[:4]
+			log.Printf("Searching for documents with ULID prefix '%s':", prefix)
+
+			// MongoDB regex search using the prefix
+			regexFilter := filter.Regex("ulid", "^"+prefix)
+			prefixCursor, err := collection.Find(ctx, regexFilter)
+			if err != nil {
+				log.Printf("Failed to search by ULID prefix: %v", err)
+			} else {
+				defer prefixCursor.Close(ctx)
+				var prefixResults []User
+				if err := prefixCursor.All(ctx, &prefixResults); err != nil {
+					log.Printf("Failed to decode prefix results: %v", err)
+				} else {
+					log.Printf("Found %d documents with ULID prefix '%s'", len(prefixResults), prefix)
+				}
 			}
 		}
 	}
 
-	// Cleanup
-	_, err = collection.DeleteMany(ctx, filter.New())
-	if err != nil {
-		emit.Error.StructuredFields("Failed to cleanup test documents",
-			emit.ZString("error", err.Error()))
-	} else {
-		emit.Info.Msg("Test documents cleaned up")
-	}
-
-	emit.Info.Msg("ULID demonstration completed successfully!")
+	log.Println("ULID demonstration completed successfully!")
 }

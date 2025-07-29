@@ -7,8 +7,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/cloudresty/emit"
 )
 
 // ShutdownConfig holds configuration for graceful shutdown
@@ -29,6 +27,7 @@ type ShutdownManager struct {
 	timeout          time.Duration
 	gracePeriod      time.Duration
 	forceKillTimeout time.Duration
+	logger           Logger
 }
 
 // Shutdownable interface for resources that can be gracefully shut down
@@ -48,10 +47,12 @@ func NewShutdownManager(config *ShutdownConfig) *ShutdownManager {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	emit.Info.StructuredFields("Creating shutdown manager",
-		emit.ZDuration("timeout", config.Timeout),
-		emit.ZDuration("grace_period", config.GracePeriod),
-		emit.ZDuration("force_kill_timeout", config.ForceKillTimeout))
+	logger := NopLogger{} // Default to no-op logger for shutdown manager
+
+	logger.Info("Creating shutdown manager",
+		"timeout", config.Timeout,
+		"grace_period", config.GracePeriod,
+		"force_kill_timeout", config.ForceKillTimeout)
 
 	return &ShutdownManager{
 		clients:          make([]*Client, 0),
@@ -62,6 +63,7 @@ func NewShutdownManager(config *ShutdownConfig) *ShutdownManager {
 		timeout:          config.Timeout,
 		gracePeriod:      config.GracePeriod,
 		forceKillTimeout: config.ForceKillTimeout,
+		logger:           logger,
 	}
 }
 
@@ -73,8 +75,10 @@ func NewShutdownManagerWithConfig(config *Config) *ShutdownManager {
 		ForceKillTimeout: 10 * time.Second,
 	}
 
-	emit.Info.StructuredFields("Creating shutdown manager with config",
-		emit.ZDuration("timeout", shutdownConfig.Timeout))
+	// Use NopLogger since we don't have access to client logger at this point
+	logger := NopLogger{}
+	logger.Info("Creating shutdown manager with config",
+		"timeout", shutdownConfig.Timeout)
 
 	return NewShutdownManager(shutdownConfig)
 }
@@ -86,14 +90,14 @@ func (sm *ShutdownManager) Register(clients ...*Client) {
 
 	sm.clients = append(sm.clients, clients...)
 
-	emit.Info.StructuredFields("Registered clients for graceful shutdown",
-		emit.ZInt("count", len(clients)))
+	sm.logger.Info("Registered clients for graceful shutdown",
+		"count", len(clients))
 }
 
 // SetupSignalHandler sets up signal handlers for graceful shutdown
 func (sm *ShutdownManager) SetupSignalHandler() {
 	signal.Notify(sm.shutdownChan, syscall.SIGINT, syscall.SIGTERM)
-	emit.Info.Msg("Signal handlers setup for graceful shutdown")
+	sm.logger.Info("Signal handlers setup for graceful shutdown")
 }
 
 // Wait blocks until a shutdown signal is received and performs graceful shutdown
@@ -101,8 +105,8 @@ func (sm *ShutdownManager) Wait() {
 	// Block until signal is received
 	sig := <-sm.shutdownChan
 
-	emit.Info.StructuredFields("Received shutdown signal, starting graceful shutdown",
-		emit.ZString("signal", sig.String()))
+	sm.logger.Info("Received shutdown signal, starting graceful shutdown",
+		"signal", sig.String())
 
 	sm.shutdown()
 }
@@ -119,9 +123,9 @@ func (sm *ShutdownManager) RegisterResources(resources ...Shutdownable) {
 
 	sm.resources = append(sm.resources, resources...)
 
-	emit.Info.StructuredFields("Registered shutdownable resources",
-		emit.ZInt("count", len(resources)),
-		emit.ZInt("total", len(sm.resources)))
+	sm.logger.Info("Registered shutdownable resources",
+		"count", len(resources),
+		"total", len(sm.resources))
 }
 
 // shutdown performs the actual shutdown logic
@@ -141,7 +145,7 @@ func (sm *ShutdownManager) shutdown() {
 
 	totalItems := len(clients) + len(resources)
 	if totalItems == 0 {
-		emit.Info.Msg("No clients or resources registered for shutdown")
+		sm.logger.Info("No clients or resources registered for shutdown")
 		return
 	}
 
@@ -152,17 +156,17 @@ func (sm *ShutdownManager) shutdown() {
 	// Shutdown all clients concurrently
 	for i, client := range clients {
 		go func(idx int, c *Client) {
-			emit.Debug.StructuredFields("Shutting down client",
-				emit.ZInt("index", idx))
+			sm.logger.Debug("Shutting down client",
+				"index", idx)
 
 			if err := c.Close(); err != nil {
-				emit.Error.StructuredFields("Failed to close client",
-					emit.ZInt("index", idx),
-					emit.ZString("error", err.Error()))
+				sm.logger.Error("Failed to close client",
+					"index", idx,
+					"error", err.Error())
 				errorCount++
 			} else {
-				emit.Debug.StructuredFields("Client shut down successfully",
-					emit.ZInt("index", idx))
+				sm.logger.Debug("Client shut down successfully",
+					"index", idx)
 			}
 			done <- true
 		}(i, client)
@@ -171,17 +175,17 @@ func (sm *ShutdownManager) shutdown() {
 	// Shutdown all resources concurrently
 	for i, resource := range resources {
 		go func(idx int, r Shutdownable) {
-			emit.Debug.StructuredFields("Shutting down resource",
-				emit.ZInt("index", idx))
+			sm.logger.Debug("Shutting down resource",
+				"index", idx)
 
 			if err := r.Close(); err != nil {
-				emit.Error.StructuredFields("Failed to close resource",
-					emit.ZInt("index", idx),
-					emit.ZString("error", err.Error()))
+				sm.logger.Error("Failed to close resource",
+					"index", idx,
+					"error", err.Error())
 				errorCount++
 			} else {
-				emit.Debug.StructuredFields("Resource shut down successfully",
-					emit.ZInt("index", idx))
+				sm.logger.Debug("Resource shut down successfully",
+					"index", idx)
 			}
 			done <- true
 		}(i, resource)
@@ -201,22 +205,22 @@ shutdownLoop:
 	}
 
 	if shutdownCount == totalItems {
-		emit.Info.StructuredFields("All clients and resources shut down successfully",
-			emit.ZInt("count", totalItems))
+		sm.logger.Info("All clients and resources shut down successfully",
+			"count", totalItems)
 	} else {
-		emit.Warn.StructuredFields("Shutdown timeout reached, forcing shutdown",
-			emit.ZInt("completed", shutdownCount),
-			emit.ZInt("total", totalItems))
+		sm.logger.Warn("Shutdown timeout reached, forcing shutdown",
+			"completed", shutdownCount,
+			"total", totalItems)
 	}
 
 	// Report results
 	if errorCount > 0 {
-		emit.Warn.StructuredFields("Some clients/resources failed to shut down gracefully",
-			emit.ZInt("errors", errorCount),
-			emit.ZInt("total", totalItems))
+		sm.logger.Warn("Some clients/resources failed to shut down gracefully",
+			"errors", errorCount,
+			"total", totalItems)
 	}
 
-	emit.Info.Msg("Graceful shutdown completed")
+	sm.logger.Info("Graceful shutdown completed")
 }
 
 // SetTimeout updates the shutdown timeout
@@ -226,8 +230,8 @@ func (sm *ShutdownManager) SetTimeout(timeout time.Duration) {
 
 	sm.timeout = timeout
 
-	emit.Info.StructuredFields("Shutdown timeout updated",
-		emit.ZDuration("timeout", timeout))
+	sm.logger.Info("Shutdown timeout updated",
+		"timeout", timeout)
 }
 
 // GetTimeout returns the current shutdown timeout
@@ -251,8 +255,8 @@ func (sm *ShutdownManager) Clear() {
 
 	sm.clients = sm.clients[:0]
 
-	emit.Info.StructuredFields("Cleared all registered clients",
-		emit.ZInt("count", 0))
+	sm.logger.Info("Cleared all registered clients",
+		"count", 0)
 }
 
 // ForceShutdown immediately shuts down all clients without waiting
@@ -262,16 +266,16 @@ func (sm *ShutdownManager) ForceShutdown() {
 	copy(clients, sm.clients)
 	sm.mutex.RUnlock()
 
-	emit.Warn.StructuredFields("Performing immediate shutdown",
-		emit.ZInt("client_count", len(clients)))
+	sm.logger.Warn("Performing immediate shutdown",
+		"client_count", len(clients))
 
 	for i, client := range clients {
 		if err := client.Close(); err != nil {
-			emit.Error.StructuredFields("Failed to close client during immediate shutdown",
-				emit.ZInt("index", i),
-				emit.ZString("error", err.Error()))
+			sm.logger.Error("Failed to close client during immediate shutdown",
+				"index", i,
+				"error", err.Error())
 		}
 	}
 
-	emit.Info.Msg("Immediate shutdown completed")
+	sm.logger.Info("Immediate shutdown completed")
 }

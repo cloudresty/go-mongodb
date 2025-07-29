@@ -13,6 +13,7 @@ This document provides comprehensive examples demonstrating different features o
 The package includes several examples in the `examples/` directory:
 
 - **`basic-client/`** - Basic MongoDB client setup using environment variables
+- **`custom-logger-emit/`** - Custom logging integration with the emit library
 - **`env-config/`** - Environment variable configuration examples
 - **`transactions/`** - Multi-document transactions
 - **`ulid-demo/`** - ULID-based IDs with MongoDB
@@ -33,18 +34,17 @@ package main
 
 import (
     "context"
+    "log"
     "os"
 
-    "github.com/cloudresty/emit"
     "github.com/cloudresty/go-mongodb"
 )
 
 func main() {
-    // Create client from environment variables
+    // Create client from environment variables - uses silent logging by default
     client, err := mongodb.NewClient(mongodb.FromEnv())
     if err != nil {
-        emit.Error.StructuredFields("Failed to create client",
-            emit.ZString("error", err.Error()))
+        log.Printf("Failed to create client: %v", err)
         os.Exit(1)
     }
     defer client.Close()
@@ -56,6 +56,96 @@ func main() {
     emit.Info.Msg("MongoDB client connected successfully")
 }
 ```
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+### Custom Logging Integration
+
+The MongoDB client supports pluggable logging through the `Logger` interface. By default, the client is silent (uses `NopLogger`). Here's how to integrate with the `emit` logging library:
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+
+    "github.com/cloudresty/emit"
+    "github.com/cloudresty/go-mongodb"
+)
+
+// EmitAdapter adapts the emit logger to satisfy the mongodb.Logger interface
+type EmitAdapter struct{}
+
+func (e EmitAdapter) Info(msg string, fields ...any) {
+    e.logWithFields(emit.Info.StructuredFields, emit.Info.Msg, msg, fields...)
+}
+
+func (e EmitAdapter) Warn(msg string, fields ...any) {
+    e.logWithFields(emit.Warn.StructuredFields, emit.Warn.Msg, msg, fields...)
+}
+
+func (e EmitAdapter) Error(msg string, fields ...any) {
+    e.logWithFields(emit.Error.StructuredFields, emit.Error.Msg, msg, fields...)
+}
+
+func (e EmitAdapter) Debug(msg string, fields ...any) {
+    e.logWithFields(emit.Debug.StructuredFields, emit.Debug.Msg, msg, fields...)
+}
+
+func (e EmitAdapter) logWithFields(structuredLogger func(string, ...emit.ZField), msgLogger func(string), msg string, fields ...any) {
+    if len(fields) == 0 {
+        msgLogger(msg)
+        return
+    }
+
+    emitFields := make([]emit.ZField, 0, len(fields)/2)
+    for i := 0; i < len(fields)-1; i += 2 {
+        key, ok := fields[i].(string)
+        if !ok {
+            continue
+        }
+
+        value := fields[i+1]
+        switch v := value.(type) {
+        case string:
+            emitFields = append(emitFields, emit.ZString(key, v))
+        case int:
+            emitFields = append(emitFields, emit.ZInt(key, v))
+        case time.Duration:
+            emitFields = append(emitFields, emit.ZDuration(key, v))
+        case error:
+            emitFields = append(emitFields, emit.ZString(key, v.Error()))
+        default:
+            emitFields = append(emitFields, emit.ZString(key, fmt.Sprintf("%v", v)))
+        }
+    }
+
+    structuredLogger(msg, emitFields...)
+}
+
+func main() {
+    // Create MongoDB client with emit logger integration
+    emitLogger := EmitAdapter{}
+
+    client, err := mongodb.NewClient(
+        mongodb.WithDatabase("example_db"),
+        mongodb.WithLogger(emitLogger), // Inject our emit adapter
+    )
+    if err != nil {
+        emit.Error.StructuredFields("Failed to create client", emit.ZString("error", err.Error()))
+        return
+    }
+    defer client.Close()
+
+    // All internal MongoDB operations will now use emit for logging
+    emit.Info.Msg("MongoDB client created with emit logger integration")
+}
+```
+
+**Note**: This approach allows you to integrate any logging library by implementing the `Logger` interface. The client operations will use your logger for internal logging while remaining completely decoupled from any specific logging framework.
 
 🔝 [back to top](#examples)
 
@@ -1055,6 +1145,6 @@ For more detailed examples, see the [`examples/`](../examples/) directory in the
 
 An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
 
-[Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty)
+[Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
 
 &nbsp;

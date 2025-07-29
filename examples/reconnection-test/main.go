@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"time"
 
-	"github.com/cloudresty/emit"
 	"github.com/cloudresty/go-mongodb"
 	"github.com/cloudresty/go-mongodb/filter"
 )
@@ -19,90 +19,96 @@ type TestDoc struct {
 }
 
 func main() {
-	emit.Info.Msg("Starting MongoDB auto-reconnection test example")
+	log.Println("Starting MongoDB auto-reconnection test example")
 
 	client, err := mongodb.NewClient()
 	if err != nil {
-		emit.Error.StructuredFields("Failed to create client",
-			emit.ZString("error", err.Error()))
+		log.Printf("Failed to create client: %v", err)
 		os.Exit(1)
 	}
 	defer client.Close()
 
 	collection := client.Database("testdb").Collection("reconnection_test")
-	ctx := context.Background()
 
-	emit.Info.Msg("Testing MongoDB connection and auto-reconnection")
+	log.Println("Testing MongoDB connection and auto-reconnection")
 
-	// Test loop - continuously try operations
-	for i := range 10 {
-		emit.Info.StructuredFields("Testing operation",
-			emit.ZInt("iteration", i+1))
+	for i := 0; i < 10; i++ {
+		log.Printf("Testing operation - iteration %d", i+1)
 
-		// Try to ping MongoDB to check connectivity
-		err := client.Ping(ctx)
-		if err != nil {
-			emit.Error.StructuredFields("Ping failed - MongoDB may be unavailable",
-				emit.ZString("error", err.Error()))
+		// Test connection with ping
+		if err := client.Ping(context.Background()); err != nil {
+			log.Printf("Ping failed - MongoDB may be unavailable: %v", err)
 		} else {
-			emit.Info.Msg("Ping successful")
+			log.Println("Ping successful")
 		}
 
-		// Try a basic operation
+		// Test write operation
 		testDoc := TestDoc{
 			Iteration: i + 1,
 			Timestamp: time.Now(),
-			Message:   "reconnection test",
+			Message:   "Auto-reconnection test document",
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		result, err := collection.InsertOne(ctx, testDoc)
+		cancel()
+
 		if err != nil {
-			emit.Error.StructuredFields("Insert operation failed",
-				emit.ZInt("iteration", i+1),
-				emit.ZString("error", err.Error()))
+			log.Printf("Insert operation failed - iteration %d: %v", i+1, err)
 		} else {
-			emit.Info.StructuredFields("Insert operation successful",
-				emit.ZInt("iteration", i+1),
-				emit.ZString("inserted_id", result.InsertedID))
+			log.Printf("Insert operation successful - iteration %d, ID: %v", i+1, result.InsertedID)
 		}
 
-		// Try to count documents
+		// Test read operation
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 		count, err := collection.CountDocuments(ctx, filter.New())
+		cancel()
+
 		if err != nil {
-			emit.Error.StructuredFields("Count operation failed",
-				emit.ZString("error", err.Error()))
+			log.Printf("Count operation failed: %v", err)
 		} else {
-			emit.Info.StructuredFields("Count operation successful",
-				emit.ZInt64("documents", count))
+			log.Printf("Count operation successful: %d documents", count)
 		}
 
 		// Wait before next iteration
-		if i < 9 { // Don't wait after the last iteration
-			emit.Info.Msg("Waiting 3 seconds before next test...")
-			emit.Info.Msg("(You can stop/restart MongoDB during this time to test reconnection)")
-			time.Sleep(3 * time.Second)
-		}
+		log.Printf("Waiting 3 seconds before next iteration...")
+		time.Sleep(3 * time.Second)
 	}
 
-	// Final cleanup
-	count, err := collection.CountDocuments(ctx, filter.New())
+	log.Println("Reconnection test completed")
+
+	// Final verification - show all test documents
+	log.Println("Retrieving all test documents:")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := collection.Find(ctx, filter.New())
 	if err != nil {
-		emit.Error.StructuredFields("Failed to count final documents",
-			emit.ZString("error", err.Error()))
-	} else {
-		emit.Info.StructuredFields("Final document count",
-			emit.ZInt64("total_documents", count))
+		log.Printf("Failed to retrieve documents: %v", err)
+		return
+	}
+	defer cursor.Close(ctx)
 
-		// Clean up test documents
-		_, err = collection.DeleteMany(ctx, filter.Eq("message", "reconnection test"))
-		if err != nil {
-			emit.Error.StructuredFields("Failed to cleanup test documents",
-				emit.ZString("error", err.Error()))
-		} else {
-			emit.Info.Msg("Test documents cleaned up")
-		}
+	var docs []TestDoc
+	if err := cursor.All(ctx, &docs); err != nil {
+		log.Printf("Failed to decode documents: %v", err)
+		return
 	}
 
-	emit.Info.Msg("MongoDB auto-reconnection test completed!")
-	emit.Info.Msg("Results show how the client handles connection issues and automatic reconnection")
+	log.Printf("Retrieved %d test documents:", len(docs))
+	for _, doc := range docs {
+		log.Printf("- Iteration %d: %s (created at %s)",
+			doc.Iteration, doc.Message, doc.Timestamp.Format(time.RFC3339))
+	}
+
+	// Clean up test data
+	deleteResult, err := collection.DeleteMany(ctx, filter.New())
+	if err != nil {
+		log.Printf("Failed to clean up test data: %v", err)
+	} else {
+		log.Printf("Cleaned up %d test documents", deleteResult.DeletedCount)
+	}
+
+	log.Println("MongoDB auto-reconnection test example completed")
 }

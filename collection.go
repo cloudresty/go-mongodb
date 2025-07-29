@@ -6,7 +6,6 @@ import (
 	"maps"
 	"time"
 
-	"github.com/cloudresty/emit"
 	"github.com/cloudresty/go-mongodb/filter"
 	"github.com/cloudresty/go-mongodb/update"
 	"github.com/cloudresty/ulid"
@@ -143,16 +142,16 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 	result, err := col.collection.InsertOne(ctx, docMap, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
-		emit.Error.StructuredFields("Failed to insert document",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to insert document",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
 	col.client.incrementOperationCount()
-	emit.Debug.StructuredFields("Document inserted successfully",
-		emit.ZString("collection", col.name),
-		emit.ZString("id", result.InsertedID.(string)))
+	col.client.config.Logger.Debug("Document inserted successfully",
+		"collection", col.name,
+		"id", result.InsertedID.(string))
 
 	return &InsertOneResult{
 		InsertedID:  result.InsertedID.(string),
@@ -215,16 +214,16 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 	_, err := col.collection.InsertMany(ctx, processedDocs, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
-		emit.Error.StructuredFields("Failed to insert documents",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to insert documents",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
 	col.client.incrementOperationCount()
-	emit.Debug.StructuredFields("Documents inserted successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("count", len(processedDocs)))
+	col.client.config.Logger.Debug("Documents inserted successfully",
+		"collection", col.name,
+		"count", len(processedDocs))
 
 	return &InsertManyResult{
 		InsertedIDs:   generatedIDs,
@@ -247,8 +246,8 @@ func (col *Collection) FindOne(ctx context.Context, filterBuilder *filter.Builde
 		filterDoc = filterBuilder.Build()
 	}
 
-	emit.Debug.StructuredFields("Finding document",
-		emit.ZString("collection", col.name))
+	col.client.config.Logger.Debug("Finding document",
+		"collection", col.name)
 
 	result := col.collection.FindOne(ctx, filterDoc, opts...)
 
@@ -274,14 +273,14 @@ func (col *Collection) Find(ctx context.Context, filterBuilder *filter.Builder, 
 		filterDoc = filterBuilder.Build()
 	}
 
-	emit.Debug.StructuredFields("Finding documents",
-		emit.ZString("collection", col.name))
+	col.client.config.Logger.Debug("Finding documents",
+		"collection", col.name)
 
 	cursor, err := col.collection.Find(ctx, filterDoc, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to find documents",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to find documents",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
@@ -321,9 +320,9 @@ func (col *Collection) UpdateOne(ctx context.Context, filterBuilder *filter.Buil
 	result, err := col.collection.UpdateOne(ctx, filterDoc, enhancedUpdate, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
-		emit.Error.StructuredFields("Failed to update document",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to update document",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
@@ -339,10 +338,10 @@ func (col *Collection) UpdateOne(ctx context.Context, filterBuilder *filter.Buil
 		updateResult.UpsertedID = result.UpsertedID.(string)
 	}
 
-	emit.Debug.StructuredFields("Document updated successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("matched", int(updateResult.MatchedCount)),
-		emit.ZInt("modified", int(updateResult.ModifiedCount)))
+	col.client.config.Logger.Debug("Document updated successfully",
+		"collection", col.name,
+		"matched", int(updateResult.MatchedCount),
+		"modified", int(updateResult.ModifiedCount))
 
 	return updateResult, nil
 }
@@ -371,9 +370,9 @@ func (col *Collection) UpdateMany(ctx context.Context, filterBuilder *filter.Bui
 
 	result, err := col.collection.UpdateMany(ctx, filterDoc, enhancedUpdate, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to update documents",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to update documents",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
@@ -387,10 +386,10 @@ func (col *Collection) UpdateMany(ctx context.Context, filterBuilder *filter.Bui
 		updateResult.UpsertedID = result.UpsertedID.(string)
 	}
 
-	emit.Debug.StructuredFields("Documents updated successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("matched", int(updateResult.MatchedCount)),
-		emit.ZInt("modified", int(updateResult.ModifiedCount)))
+	col.client.config.Logger.Debug("Documents updated successfully",
+		"collection", col.name,
+		"matched", int(updateResult.MatchedCount),
+		"modified", int(updateResult.ModifiedCount))
 
 	return updateResult, nil
 }
@@ -414,9 +413,9 @@ func (col *Collection) ReplaceOne(ctx context.Context, filterBuilder *filter.Bui
 
 	result, err := col.collection.ReplaceOne(ctx, filterDoc, enhanced, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to replace document",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to replace document",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
@@ -430,10 +429,10 @@ func (col *Collection) ReplaceOne(ctx context.Context, filterBuilder *filter.Bui
 		updateResult.UpsertedID = result.UpsertedID.(string)
 	}
 
-	emit.Debug.StructuredFields("Document replaced successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("matched", int(updateResult.MatchedCount)),
-		emit.ZInt("modified", int(updateResult.ModifiedCount)))
+	col.client.config.Logger.Debug("Document replaced successfully",
+		"collection", col.name,
+		"matched", int(updateResult.MatchedCount),
+		"modified", int(updateResult.ModifiedCount))
 
 	return updateResult, nil
 }
@@ -455,16 +454,16 @@ func (col *Collection) DeleteOne(ctx context.Context, filterBuilder *filter.Buil
 	result, err := col.collection.DeleteOne(ctx, filterDoc, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
-		emit.Error.StructuredFields("Failed to delete document",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to delete document",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
 	col.client.incrementOperationCount()
-	emit.Debug.StructuredFields("Document deleted successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("deleted", int(result.DeletedCount)))
+	col.client.config.Logger.Debug("Document deleted successfully",
+		"collection", col.name,
+		"deleted", int(result.DeletedCount))
 
 	return &DeleteResult{
 		DeletedCount: result.DeletedCount,
@@ -487,15 +486,15 @@ func (col *Collection) DeleteMany(ctx context.Context, filterBuilder *filter.Bui
 
 	result, err := col.collection.DeleteMany(ctx, filterDoc, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to delete documents",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to delete documents",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
-	emit.Debug.StructuredFields("Documents deleted successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("deleted", int(result.DeletedCount)))
+	col.client.config.Logger.Debug("Documents deleted successfully",
+		"collection", col.name,
+		"deleted", int(result.DeletedCount))
 
 	return &DeleteResult{
 		DeletedCount: result.DeletedCount,
@@ -518,15 +517,15 @@ func (col *Collection) CountDocuments(ctx context.Context, filterBuilder *filter
 
 	count, err := col.collection.CountDocuments(ctx, filterDoc, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to count documents",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to count documents",
+			"error", err.Error(),
+			"collection", col.name)
 		return 0, err
 	}
 
-	emit.Debug.StructuredFields("Documents counted successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("count", int(count)))
+	col.client.config.Logger.Debug("Documents counted successfully",
+		"collection", col.name,
+		"count", int(count))
 
 	return count, nil
 }
@@ -547,10 +546,10 @@ func (col *Collection) Distinct(ctx context.Context, fieldName string, filterBui
 
 	result := col.collection.Distinct(ctx, fieldName, filterDoc, opts...)
 	if result.Err() != nil {
-		emit.Error.StructuredFields("Failed to get distinct values",
-			emit.ZString("error", result.Err().Error()),
-			emit.ZString("collection", col.name),
-			emit.ZString("field", fieldName))
+		col.client.config.Logger.Error("Failed to get distinct values",
+			"error", result.Err().Error(),
+			"collection", col.name,
+			"field", fieldName)
 		return nil, result.Err()
 	}
 
@@ -559,10 +558,10 @@ func (col *Collection) Distinct(ctx context.Context, fieldName string, filterBui
 		return nil, err
 	}
 
-	emit.Debug.StructuredFields("Distinct values retrieved successfully",
-		emit.ZString("collection", col.name),
-		emit.ZString("field", fieldName),
-		emit.ZInt("count", len(values)))
+	col.client.config.Logger.Debug("Distinct values retrieved successfully",
+		"collection", col.name,
+		"field", fieldName,
+		"count", len(values))
 
 	return values, nil
 }
@@ -577,14 +576,14 @@ func (col *Collection) Aggregate(ctx context.Context, pipeline any, opts ...opti
 
 	cursor, err := col.collection.Aggregate(ctx, pipeline, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to aggregate",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to aggregate",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
-	emit.Debug.StructuredFields("Aggregation started successfully",
-		emit.ZString("collection", col.name))
+	col.client.config.Logger.Debug("Aggregation started successfully",
+		"collection", col.name)
 
 	return cursor, nil
 }
@@ -604,15 +603,15 @@ func (col *Collection) CreateIndex(ctx context.Context, model mongo.IndexModel, 
 
 	name, err := col.collection.Indexes().CreateOne(ctx, model, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to create index",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to create index",
+			"error", err.Error(),
+			"collection", col.name)
 		return "", err
 	}
 
-	emit.Debug.StructuredFields("Index created successfully",
-		emit.ZString("collection", col.name),
-		emit.ZString("index", name))
+	col.client.config.Logger.Debug("Index created successfully",
+		"collection", col.name,
+		"index", name)
 
 	return name, nil
 }
@@ -627,15 +626,15 @@ func (col *Collection) CreateIndexes(ctx context.Context, models []mongo.IndexMo
 
 	names, err := col.collection.Indexes().CreateMany(ctx, models, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to create indexes",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to create indexes",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
-	emit.Debug.StructuredFields("Indexes created successfully",
-		emit.ZString("collection", col.name),
-		emit.ZInt("count", len(names)))
+	col.client.config.Logger.Debug("Indexes created successfully",
+		"collection", col.name,
+		"count", len(names))
 
 	return names, nil
 }
@@ -650,16 +649,16 @@ func (col *Collection) DropIndex(ctx context.Context, name string, opts ...optio
 
 	err := col.collection.Indexes().DropOne(ctx, name, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to drop index",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name),
-			emit.ZString("index", name))
+		col.client.config.Logger.Error("Failed to drop index",
+			"error", err.Error(),
+			"collection", col.name,
+			"index", name)
 		return err
 	}
 
-	emit.Debug.StructuredFields("Index dropped successfully",
-		emit.ZString("collection", col.name),
-		emit.ZString("index", name))
+	col.client.config.Logger.Debug("Index dropped successfully",
+		"collection", col.name,
+		"index", name)
 
 	return nil
 }
@@ -674,14 +673,14 @@ func (col *Collection) ListIndexes(ctx context.Context, opts ...options.Lister[o
 
 	cursor, err := col.collection.Indexes().List(ctx, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to list indexes",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to list indexes",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
-	emit.Debug.StructuredFields("Indexes listed successfully",
-		emit.ZString("collection", col.name))
+	col.client.config.Logger.Debug("Indexes listed successfully",
+		"collection", col.name)
 
 	return cursor, nil
 }
@@ -696,14 +695,14 @@ func (col *Collection) Watch(ctx context.Context, pipeline any, opts ...options.
 
 	stream, err := col.collection.Watch(ctx, pipeline, opts...)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to create change stream",
-			emit.ZString("error", err.Error()),
-			emit.ZString("collection", col.name))
+		col.client.config.Logger.Error("Failed to create change stream",
+			"error", err.Error(),
+			"collection", col.name)
 		return nil, err
 	}
 
-	emit.Debug.StructuredFields("Change stream created successfully",
-		emit.ZString("collection", col.name))
+	col.client.config.Logger.Debug("Change stream created successfully",
+		"collection", col.name)
 
 	return stream, nil
 }

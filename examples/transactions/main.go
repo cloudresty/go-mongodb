@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 
-	"github.com/cloudresty/emit"
 	"github.com/cloudresty/go-mongodb"
 	"github.com/cloudresty/go-mongodb/filter"
 	"github.com/cloudresty/go-mongodb/update"
@@ -29,161 +29,207 @@ type Inventory struct {
 }
 
 func main() {
-	emit.Info.Msg("Starting MongoDB transactions example")
+	log.Println("Starting MongoDB transactions example")
 
 	client, err := mongodb.NewClient()
 	if err != nil {
-		emit.Error.StructuredFields("Failed to create client",
-			emit.ZString("error", err.Error()))
+		log.Printf("Failed to create client: %v", err)
 		os.Exit(1)
 	}
 	defer client.Close()
 
-	db := client.Database("ecommerce")
-	orders := db.Collection("orders")
-	inventory := db.Collection("inventory")
+	database := client.Database("transactions_example")
+	ordersCollection := database.Collection("orders")
+	inventoryCollection := database.Collection("inventory")
 
-	// Setup initial inventory
+	// Clean up from previous runs
 	ctx := context.Background()
+	_, _ = ordersCollection.DeleteMany(ctx, filter.New())
+	_, _ = inventoryCollection.DeleteMany(ctx, filter.New())
 
-	// Clean up existing data
-	_, _ = orders.DeleteMany(ctx, filter.New())
-	_, _ = inventory.DeleteMany(ctx, filter.New())
-
-	// Insert initial inventory
+	// Set up initial inventory
 	initialInventory := Inventory{
-		Product:  "laptop",
-		Quantity: 10,
+		Product:  "Widget",
+		Quantity: 100,
 	}
 
-	_, err = inventory.InsertOne(ctx, initialInventory)
+	_, err = inventoryCollection.InsertOne(ctx, initialInventory)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to insert initial inventory",
-			emit.ZString("error", err.Error()))
+		log.Printf("Failed to insert initial inventory: %v", err)
 		os.Exit(1)
 	}
 
-	emit.Info.StructuredFields("Initial inventory created",
-		emit.ZString("product", initialInventory.Product),
-		emit.ZInt("quantity", initialInventory.Quantity))
+	log.Printf("Initial inventory created: Product=%s, Quantity=%d",
+		initialInventory.Product, initialInventory.Quantity)
 
-	// Start transaction
+	// Start a session for transactions
 	session, err := client.StartSession()
 	if err != nil {
-		emit.Error.StructuredFields("Failed to start session",
-			emit.ZString("error", err.Error()))
+		log.Printf("Failed to start session: %v", err)
 		os.Exit(1)
 	}
 	defer session.EndSession(ctx)
 
-	emit.Info.Msg("Transaction session started")
+	log.Println("Transaction session started")
 
-	// Define transaction operation
+	// Define transaction options with strong consistency
 	txnOpts := options.Transaction().
-		SetReadConcern(readconcern.Majority()).
+		SetReadConcern(readconcern.Snapshot()).
 		SetWriteConcern(writeconcern.Majority())
 
-	result, err := session.WithTransaction(ctx, func(sessCtx context.Context) (any, error) {
-		emit.Info.Msg("Executing transaction operations")
+	_, err = session.WithTransaction(ctx, func(sessCtx context.Context) (interface{}, error) {
+		log.Println("Executing transaction operations")
 
-		// Create order
+		// Step 1: Create an order
 		order := Order{
-			Product:  "laptop",
-			Quantity: 2,
-			Amount:   1999.98,
+			Product:  "Widget",
+			Quantity: 5,
+			Amount:   25.50,
 			Status:   "pending",
 		}
 
-		_, err := orders.InsertOne(sessCtx, order)
+		orderResult, err := ordersCollection.InsertOne(sessCtx, order)
 		if err != nil {
-			emit.Error.StructuredFields("Failed to insert order",
-				emit.ZString("error", err.Error()))
+			log.Printf("Failed to insert order: %v", err)
 			return nil, err
 		}
 
-		emit.Info.StructuredFields("Order created",
-			emit.ZString("order_id", order.ID),
-			emit.ZInt("quantity", order.Quantity))
+		log.Printf("Order created: ID=%v, Quantity=%d",
+			orderResult.InsertedID, order.Quantity)
 
-		// Update inventory
-		filterBuilder := filter.Eq("product", "laptop")
-		updateBuilder := update.Inc("quantity", -order.Quantity)
+		// Step 2: Update inventory (subtract the ordered quantity)
+		inventoryFilter := filter.Eq("product", "Widget")
+		inventoryUpdate := update.New().Inc("quantity", -order.Quantity)
 
-		updateResult, err := inventory.UpdateOne(sessCtx, filterBuilder, updateBuilder)
+		updateResult, err := inventoryCollection.UpdateOne(sessCtx, inventoryFilter, inventoryUpdate)
 		if err != nil {
-			emit.Error.StructuredFields("Failed to update inventory",
-				emit.ZString("error", err.Error()))
+			log.Printf("Failed to update inventory: %v", err)
 			return nil, err
 		}
 
 		if updateResult.ModifiedCount == 0 {
-			emit.Error.Msg("No inventory found for product")
-			return nil, mongo.ErrNoDocuments
+			log.Println("No inventory record was updated - product might not exist")
+			return nil, mongo.WriteException{}
 		}
 
-		emit.Info.StructuredFields("Inventory updated",
-			emit.ZString("product", "laptop"),
-			emit.ZInt("quantity_deducted", order.Quantity))
+		log.Printf("Inventory updated: %d records modified", updateResult.ModifiedCount)
 
-		// Check if inventory is sufficient
-		var inv Inventory
-		err = inventory.FindOne(sessCtx, filterBuilder).Decode(&inv)
+		// Step 3: Verify inventory levels (business logic check)
+		var updatedInventory Inventory
+		err = inventoryCollection.FindOne(sessCtx, inventoryFilter).Decode(&updatedInventory)
 		if err != nil {
-			emit.Error.StructuredFields("Failed to check inventory",
-				emit.ZString("error", err.Error()))
+			log.Printf("Failed to verify inventory: %v", err)
 			return nil, err
 		}
 
-		if inv.Quantity < 0 {
-			emit.Error.StructuredFields("Insufficient inventory",
-				emit.ZInt("remaining", inv.Quantity))
-			return nil, mongo.WriteException{
-				WriteErrors: []mongo.WriteError{{
-					Code:    1,
-					Message: "insufficient inventory",
-				}},
-			}
+		if updatedInventory.Quantity < 0 {
+			log.Printf("Insufficient inventory! Current quantity: %d", updatedInventory.Quantity)
+			return nil, mongo.WriteException{} // This will cause the transaction to abort
 		}
 
-		emit.Info.StructuredFields("Transaction operations completed successfully",
-			emit.ZInt("remaining_inventory", inv.Quantity))
+		log.Printf("Inventory verification passed: Remaining quantity=%d",
+			updatedInventory.Quantity)
 
-		return order, nil
+		// Step 4: Update order status to confirmed
+		orderFilter := filter.Eq("_id", orderResult.InsertedID)
+		orderUpdate := update.New().Set("status", "confirmed")
+
+		_, err = ordersCollection.UpdateOne(sessCtx, orderFilter, orderUpdate)
+		if err != nil {
+			log.Printf("Failed to update order status: %v", err)
+			return nil, err
+		}
+
+		log.Println("Order status updated to confirmed")
+
+		return nil, nil
 	}, txnOpts)
 
 	if err != nil {
-		emit.Error.StructuredFields("Transaction failed",
-			emit.ZString("error", err.Error()))
-		os.Exit(1)
+		log.Printf("Transaction failed: %v", err)
+		log.Println("All changes have been rolled back")
+	} else {
+		log.Println("Transaction completed successfully!")
 	}
-
-	order := result.(Order)
-	emit.Info.StructuredFields("Transaction completed successfully",
-		emit.ZString("order_id", order.ID),
-		emit.ZFloat64("amount", order.Amount),
-		emit.ZString("status", order.Status))
 
 	// Verify final state
+	log.Println("Verifying final database state:")
+
+	// Check orders
+	orderCount, _ := ordersCollection.CountDocuments(ctx, filter.New())
+	log.Printf("Total orders in database: %d", orderCount)
+
+	// Check inventory
 	var finalInventory Inventory
-	err = inventory.FindOne(ctx, filter.Eq("product", "laptop")).Decode(&finalInventory)
+	err = inventoryCollection.FindOne(ctx, filter.Eq("product", "Widget")).Decode(&finalInventory)
 	if err != nil {
-		emit.Error.StructuredFields("Failed to verify final inventory",
-			emit.ZString("error", err.Error()))
+		log.Printf("Failed to retrieve final inventory: %v", err)
 	} else {
-		emit.Info.StructuredFields("Final inventory verified",
-			emit.ZString("product", finalInventory.Product),
-			emit.ZInt("quantity", finalInventory.Quantity))
+		log.Printf("Final inventory: Product=%s, Quantity=%d",
+			finalInventory.Product, finalInventory.Quantity)
 	}
 
-	var orderCount int64
-	orderCount, err = orders.CountDocuments(ctx, filter.New())
+	log.Println("MongoDB transactions example completed")
+
+	// Demonstrate transaction failure scenario
+	log.Println("\nTesting transaction rollback with insufficient inventory...")
+
+	_, err = session.WithTransaction(ctx, func(sessCtx context.Context) (interface{}, error) {
+		// Try to order more than available
+		largeOrder := Order{
+			Product:  "Widget",
+			Quantity: 200, // More than available
+			Amount:   1000.00,
+			Status:   "pending",
+		}
+
+		orderResult, err := ordersCollection.InsertOne(sessCtx, largeOrder)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("Large order created: ID=%v, Quantity=%d",
+			orderResult.InsertedID, largeOrder.Quantity)
+
+		// Try to update inventory
+		inventoryFilter := filter.Eq("product", "Widget")
+		inventoryUpdate := update.New().Inc("quantity", -largeOrder.Quantity)
+
+		_, err = inventoryCollection.UpdateOne(sessCtx, inventoryFilter, inventoryUpdate)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if inventory went negative
+		var checkInventory Inventory
+		err = inventoryCollection.FindOne(sessCtx, inventoryFilter).Decode(&checkInventory)
+		if err != nil {
+			return nil, err
+		}
+
+		if checkInventory.Quantity < 0 {
+			log.Printf("Insufficient inventory detected! Quantity would be: %d",
+				checkInventory.Quantity)
+			return nil, mongo.WriteException{} // Force rollback
+		}
+
+		return nil, nil
+	}, txnOpts)
+
 	if err != nil {
-		emit.Error.StructuredFields("Failed to count orders",
-			emit.ZString("error", err.Error()))
+		log.Println("Large order transaction failed as expected - insufficient inventory")
+		log.Println("Transaction was rolled back automatically")
+
+		// Verify inventory wasn't changed
+		var verifyInventory Inventory
+		err = inventoryCollection.FindOne(ctx, filter.Eq("product", "Widget")).Decode(&verifyInventory)
+		if err == nil {
+			log.Printf("Inventory after failed transaction: %d (should be unchanged)",
+				verifyInventory.Quantity)
+		}
 	} else {
-		emit.Info.StructuredFields("Orders count",
-			emit.ZInt64("count", orderCount))
+		log.Println("Large order transaction succeeded unexpectedly")
 	}
 
-	emit.Info.Msg("MongoDB transactions example completed successfully!")
+	log.Println("Transaction rollback demonstration completed")
 }

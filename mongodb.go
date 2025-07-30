@@ -192,7 +192,7 @@ func Ping(ctx ...context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	var pingCtx context.Context
 	if len(ctx) > 0 {

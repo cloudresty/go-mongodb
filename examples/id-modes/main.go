@@ -45,7 +45,7 @@ func demoULIDMode() {
 		log.Printf("Error creating client: %v", err)
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	fmt.Println("   Configuration: Default (ULID)")
 	fmt.Println("   Document ID will be a 26-character ULID string")
@@ -86,7 +86,7 @@ func demoEnvironmentConfig() {
 		log.Printf("Error creating client: %v", err)
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	fmt.Printf("   Client created with environment-configured ID mode\n")
 }

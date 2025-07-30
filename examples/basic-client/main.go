@@ -18,7 +18,7 @@ func main() {
 		log.Println("Hint: Set MONGODB_* environment variables or defaults will be used")
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	log.Println("MongoDB client connected successfully")
 

@@ -26,7 +26,7 @@ func main() {
 		log.Printf("Failed to create client with direct connection: %v", err)
 	} else {
 		fmt.Println("✓ Client created with direct connection")
-		defer client1.Close()
+		defer func() { _ = client1.Close() }()
 	}
 
 	// Example 2: Using environment variables with direct connection

@@ -19,7 +19,7 @@ func main() {
 		log.Printf("Failed to create client from environment: %v", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	log.Println("Client created successfully from environment variables")
 
@@ -31,7 +31,7 @@ func main() {
 		log.Printf("Failed to create client from environment with prefix: %v", err)
 		log.Println("Custom prefix example failed (expected if MYAPP_* vars not set)")
 	} else {
-		defer clientWithPrefix.Close()
+		defer func() { _ = clientWithPrefix.Close() }()
 		log.Println("Client with custom prefix created successfully")
 	}
 
@@ -47,7 +47,7 @@ func main() {
 		log.Printf("Failed to create client with environment config: %v", err)
 		os.Exit(1)
 	}
-	defer clientWithConfig.Close()
+	defer func() { _ = clientWithConfig.Close() }()
 
 	log.Println("Created client from environment with custom overrides")
 

@@ -26,7 +26,7 @@ func main() {
 		log.Printf("Failed to create client: %v", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	collection := client.Database("testdb").Collection("reconnection_test")
 
@@ -88,7 +88,7 @@ func main() {
 		log.Printf("Failed to retrieve documents: %v", err)
 		return
 	}
-	defer cursor.Close(ctx)
+	defer func() { _ = cursor.Close(ctx) }()
 
 	var docs []TestDoc
 	if err := cursor.All(ctx, &docs); err != nil {

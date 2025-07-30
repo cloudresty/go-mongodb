@@ -36,7 +36,7 @@ func main() {
 		log.Printf("Failed to create client: %v", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	database := client.Database("transactions_example")
 	ordersCollection := database.Collection("orders")

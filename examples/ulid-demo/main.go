@@ -26,7 +26,7 @@ func main() {
 		log.Printf("Failed to create client: %v", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	collection := client.Database("testdb").Collection("ulid_demo")
 	ctx := context.Background()
@@ -81,7 +81,7 @@ func main() {
 		log.Printf("Failed to find documents: %v", err)
 		return
 	}
-	defer cursor.Close(ctx)
+	defer func() { _ = cursor.Close(ctx) }()
 
 	var users_result []User
 	if err := cursor.All(ctx, &users_result); err != nil {
@@ -113,7 +113,7 @@ func main() {
 			if err != nil {
 				log.Printf("Failed to search by ULID prefix: %v", err)
 			} else {
-				defer prefixCursor.Close(ctx)
+				defer func() { _ = prefixCursor.Close(ctx) }()
 				var prefixResults []User
 				if err := prefixCursor.All(ctx, &prefixResults); err != nil {
 					log.Printf("Failed to decode prefix results: %v", err)

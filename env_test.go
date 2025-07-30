@@ -26,15 +26,15 @@ func TestLoadFromEnv(t *testing.T) {
 
 	// Set environment variables
 	for key, value := range envVars {
-		os.Setenv(key, value)
+		_ = os.Setenv(key, value)
 	}
 	defer func() {
 		// Restore environment variables
 		for key := range envVars {
 			if value, exists := savedValues[key]; exists && value != "" {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			} else {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 		}
 	}()
@@ -44,7 +44,7 @@ func TestLoadFromEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client with environment config: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Get the config from the client to verify values
 	config := client.config
@@ -91,15 +91,15 @@ func TestLoadFromEnvWithPrefix(t *testing.T) {
 
 	// Set environment variables
 	for key, value := range envVars {
-		os.Setenv(key, value)
+		_ = os.Setenv(key, value)
 	}
 	defer func() {
 		// Restore environment variables
 		for key := range envVars {
 			if value, exists := savedValues[key]; exists && value != "" {
-				os.Setenv(key, value)
+				_ = os.Setenv(key, value)
 			} else {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			}
 		}
 	}()
@@ -109,7 +109,7 @@ func TestLoadFromEnvWithPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client with environment config with prefix: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Get the config from the client to verify values
 	config := client.config
@@ -246,15 +246,15 @@ func TestEnvDefaults(t *testing.T) {
 	savedValues := make(map[string]string)
 	for _, envVar := range envVarsToSave {
 		savedValues[envVar] = os.Getenv(envVar)
-		os.Unsetenv(envVar)
+		_ = os.Unsetenv(envVar)
 	}
 	defer func() {
 		// Restore environment variables
 		for _, envVar := range envVarsToSave {
 			if value, exists := savedValues[envVar]; exists && value != "" {
-				os.Setenv(envVar, value)
+				_ = os.Setenv(envVar, value)
 			} else {
-				os.Unsetenv(envVar)
+				_ = os.Unsetenv(envVar)
 			}
 		}
 	}()
@@ -264,7 +264,7 @@ func TestEnvDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client with default config: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Get the config from the client to verify defaults
 	config := client.config

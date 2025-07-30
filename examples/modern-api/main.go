@@ -51,7 +51,7 @@ func main() {
 		fmt.Println("Note: Using existing API for demonstration")
 		return
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	fmt.Println("✓ Client created using current API (will be enhanced)")
 

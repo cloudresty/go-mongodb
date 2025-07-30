@@ -155,7 +155,7 @@ func TestIndexOperations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to list indexes: %v", err)
 	}
-	defer cursor.Close(ctx)
+	defer func() { _ = cursor.Close(ctx) }()
 
 	var indexes []bson.M
 	if err = cursor.All(ctx, &indexes); err != nil {
@@ -423,9 +423,9 @@ func TestDirectConnectionEnvironmentVariable(t *testing.T) {
 	originalValue := os.Getenv("MONGODB_DIRECT_CONNECTION")
 	defer func() {
 		if originalValue == "" {
-			os.Unsetenv("MONGODB_DIRECT_CONNECTION")
+			_ = os.Unsetenv("MONGODB_DIRECT_CONNECTION")
 		} else {
-			os.Setenv("MONGODB_DIRECT_CONNECTION", originalValue)
+			_ = os.Setenv("MONGODB_DIRECT_CONNECTION", originalValue)
 		}
 	}()
 
@@ -456,9 +456,9 @@ func TestDirectConnectionEnvironmentVariable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variable
 			if tt.envValue == "" {
-				os.Unsetenv("MONGODB_DIRECT_CONNECTION")
+				_ = os.Unsetenv("MONGODB_DIRECT_CONNECTION")
 			} else {
-				os.Setenv("MONGODB_DIRECT_CONNECTION", tt.envValue)
+				_ = os.Setenv("MONGODB_DIRECT_CONNECTION", tt.envValue)
 			}
 
 			// Load config from environment

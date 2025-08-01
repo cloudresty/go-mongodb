@@ -463,6 +463,190 @@ func main() {
 
 &nbsp;
 
+## Atomic Upsert Patterns
+
+&nbsp;
+
+### Basic Atomic Upsert with $setOnInsert
+
+```go
+package main
+
+import (
+    "context"
+    "time"
+    
+    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/filter"
+    "github.com/cloudresty/go-mongodb/update"
+    "go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+type Event struct {
+    ID        string    `bson:"_id"`
+    URL       string    `bson:"url"`
+    MediaID   string    `bson:"media_id"`
+    Title     string    `bson:"title"`
+    EventType string    `bson:"event_type"`
+    CreatedAt time.Time `bson:"created_at"`
+    UpdatedAt time.Time `bson:"updated_at"`
+}
+
+func atomicUpsertExample() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Database("events").Collection("media_events")
+    ctx := context.Background()
+
+    event := Event{
+        ID:        "event-123",
+        URL:       "https://example.com/video/123",
+        MediaID:   "media-456",
+        Title:     "Sample Video",
+        EventType: "view",
+        CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
+    }
+
+    // Method 1: Individual field approach
+    filterBuilder := filter.Eq("url", event.URL)
+    updateBuilder := update.New().
+        SetOnInsert("_id", event.ID).
+        SetOnInsert("media_id", event.MediaID).
+        SetOnInsert("title", event.Title).
+        SetOnInsert("event_type", event.EventType).
+        SetOnInsert("created_at", event.CreatedAt).
+        SetOnInsert("updated_at", event.UpdatedAt)
+
+    opts := options.UpdateOne().SetUpsert(true)
+    result, err := collection.UpdateOne(ctx, filterBuilder, updateBuilder, opts)
+
+    // Method 2: Struct approach (NEW)
+    updateBuilder2 := update.New().SetOnInsertStruct(event)
+    result2, err := collection.UpdateOne(ctx, filterBuilder, updateBuilder2, opts)
+
+    // Method 3: Map approach (NEW)
+    fields := map[string]any{
+        "_id":        event.ID,
+        "media_id":   event.MediaID,
+        "title":      event.Title,
+        "event_type": event.EventType,
+        "created_at": event.CreatedAt,
+        "updated_at": event.UpdatedAt,
+    }
+    updateBuilder3 := update.New().SetOnInsertMap(fields)
+    result3, err := collection.UpdateOne(ctx, filterBuilder, updateBuilder3, opts)
+}
+```
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+### Convenience Upsert Methods
+
+```go
+func convenienceUpsertExample() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Database("events").Collection("media_events")
+    ctx := context.Background()
+
+    event := Event{
+        ID:        "event-456",
+        URL:       "https://example.com/video/456",
+        MediaID:   "media-789",
+        Title:     "Another Video",
+        EventType: "view",
+        CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
+    }
+
+    // Method 1: UpsertByField with struct (NEW)
+    result1, err := collection.UpsertByField(ctx, "url", event.URL, event)
+    if err != nil {
+        log.Printf("Upsert failed: %v", err)
+        return
+    }
+    log.Printf("Upserted: %d, Matched: %d", result1.UpsertedCount, result1.MatchedCount)
+
+    // Method 2: UpsertByFieldMap (NEW)
+    fields := map[string]any{
+        "_id":        event.ID,
+        "media_id":   event.MediaID,
+        "title":      event.Title,
+        "event_type": event.EventType,
+        "created_at": event.CreatedAt,
+        "updated_at": event.UpdatedAt,
+    }
+    result2, err := collection.UpsertByFieldMap(ctx, "url", event.URL, fields)
+
+    // Method 3: UpsertByFieldWithOptions for advanced control (NEW)
+    upsertOpts := &mongodb.UpsertOptions{
+        OnlyInsert:     true,  // Default: only insert, never modify existing
+        SkipTimestamps: false, // Default: add timestamps
+    }
+    result3, err := collection.UpsertByFieldWithOptions(ctx, "url", event.URL, event, upsertOpts)
+}
+```
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+### Race Condition Prevention
+
+```go
+func raceConditionExample() {
+    // This demonstrates how atomic upserts prevent race conditions
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        panic(err)
+    }
+    defer client.Close()
+
+    collection := client.Database("events").Collection("media_events")
+    ctx := context.Background()
+
+    // Simulate concurrent operations trying to insert the same event
+    event := Event{
+        ID:        "concurrent-event-123",
+        URL:       "https://example.com/concurrent/123",
+        MediaID:   "concurrent-media-456",
+        Title:     "Concurrent Access Test",
+        EventType: "view",
+        CreatedAt: time.Now(),
+        UpdatedAt: time.Now(),
+    }
+
+    // First upsert - will create the document
+    result1, err := collection.UpsertByField(ctx, "url", event.URL, event)
+    log.Printf("First upsert: UpsertedCount=%d, MatchedCount=%d", 
+               result1.UpsertedCount, result1.MatchedCount)
+
+    // Second upsert with same URL - will match but not modify
+    result2, err := collection.UpsertByField(ctx, "url", event.URL, event)
+    log.Printf("Second upsert: UpsertedCount=%d, MatchedCount=%d", 
+               result2.UpsertedCount, result2.MatchedCount)
+
+    // The document is only created once, never modified
+    // UpsertedCount=1 for first, UpsertedCount=0 for second
+    // This prevents duplicate entries and data corruption
+}
+```
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
 ## Transaction Patterns
 
 &nbsp;

@@ -158,6 +158,20 @@ type Logger interface {
 
 &nbsp;
 
+### Atomic Upsert Operations
+
+| Function | Description |
+|----------|-------------|
+| `collection.UpsertByField(ctx, field, value, document) (*UpdateResult, error)` | Atomic upsert using $setOnInsert for struct |
+| `collection.UpsertByFieldMap(ctx, field, value, fields) (*UpdateResult, error)` | Atomic upsert using $setOnInsert for map |
+| `collection.UpsertByFieldWithOptions(ctx, field, value, document, opts) (*UpdateResult, error)` | Atomic upsert with configuration options |
+
+**Note**: All upsert methods use `$setOnInsert` by default, ensuring existing documents are never modified and preventing race conditions.
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
 ## Fluent Query Builders
 
 &nbsp;
@@ -232,11 +246,15 @@ type Logger interface {
 |----------|-------------|
 | `update.New()` | Create a new update builder |
 | `update.Set(field, value)` | Create a set operation |
+| `update.SetMap(fields)` | Create a set operation for multiple fields from map |
+| `update.SetStruct(document)` | Create a set operation for all fields from struct |
 | `update.Unset(fields...)` | Create an unset operation |
 | `update.Inc(field, value)` | Create an increment operation |
 | `update.Mul(field, value)` | Create a multiply operation |
 | `update.Rename(from, to)` | Create a rename operation |
-| `update.SetOnInsert(field, value)` | Create a setOnInsert operation |
+| `update.SetOnInsert(field, value)` | Create a setOnInsert operation for single field |
+| `update.SetOnInsertMap(fields)` | Create a setOnInsert operation for multiple fields from map |
+| `update.SetOnInsertStruct(document)` | Create a setOnInsert operation for all fields from struct |
 
 🔝 [back to top](#api-reference)
 

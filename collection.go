@@ -707,6 +707,89 @@ func (col *Collection) Watch(ctx context.Context, pipeline any, opts ...options.
 	return stream, nil
 }
 
+// Convenience Upsert Methods
+
+// UpsertByField performs an atomic upsert based on a specific field match
+// This is a convenience method that combines filter creation, update building, and upsert execution
+func (col *Collection) UpsertByField(ctx context.Context, field string, value any, document any) (*UpdateResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Create filter for the specified field
+	filterBuilder := filter.Eq(field, value)
+
+	// Create update using $setOnInsert for the entire document
+	updateBuilder := update.New().SetOnInsertStruct(document)
+
+	// Enable upsert
+	opts := options.UpdateOne().SetUpsert(true)
+
+	return col.UpdateOne(ctx, filterBuilder, updateBuilder, opts)
+}
+
+// UpsertByFieldMap performs an atomic upsert based on a specific field match using a map for the document
+func (col *Collection) UpsertByFieldMap(ctx context.Context, field string, value any, fields map[string]any) (*UpdateResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Create filter for the specified field
+	filterBuilder := filter.Eq(field, value)
+
+	// Create update using $setOnInsert for the map fields
+	updateBuilder := update.New().SetOnInsertMap(fields)
+
+	// Enable upsert
+	opts := options.UpdateOne().SetUpsert(true)
+
+	return col.UpdateOne(ctx, filterBuilder, updateBuilder, opts)
+}
+
+// UpsertOptions provides configuration for upsert operations
+type UpsertOptions struct {
+	// OnlyInsert when true, ensures existing documents are never modified
+	// This is the default behavior when using $setOnInsert
+	OnlyInsert bool
+
+	// SkipTimestamps when true, disables automatic timestamp addition
+	SkipTimestamps bool
+}
+
+// UpsertByFieldWithOptions performs an atomic upsert with additional configuration options
+func (col *Collection) UpsertByFieldWithOptions(ctx context.Context, field string, value any, document any, upsertOpts *UpsertOptions) (*UpdateResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	if upsertOpts == nil {
+		upsertOpts = &UpsertOptions{OnlyInsert: true}
+	}
+
+	// Create filter for the specified field
+	filterBuilder := filter.Eq(field, value)
+
+	var updateBuilder *update.Builder
+	if upsertOpts.OnlyInsert {
+		// Use $setOnInsert to ensure existing documents are not modified
+		updateBuilder = update.New().SetOnInsertStruct(document)
+	} else {
+		// Use $set to update existing documents as well
+		updateBuilder = update.New().SetStruct(document)
+	}
+
+	// Enable upsert
+	opts := options.UpdateOne().SetUpsert(true)
+
+	return col.UpdateOne(ctx, filterBuilder, updateBuilder, opts)
+}
+
 // Helper functions
 
 // addUpdatedAt adds or updates the updated_at field in an update document

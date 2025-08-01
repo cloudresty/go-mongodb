@@ -48,6 +48,73 @@ func (b *Builder) Set(field string, value any) *Builder {
 	return b
 }
 
+// SetMap sets multiple fields from a map
+func SetMap(fields map[string]any) *Builder {
+	setFields := make(bson.M)
+	for k, v := range fields {
+		setFields[k] = v
+	}
+	return &Builder{
+		update: bson.M{"$set": setFields},
+	}
+}
+
+// SetMap sets multiple fields from a map (method version)
+func (b *Builder) SetMap(fields map[string]any) *Builder {
+	if b.update["$set"] == nil {
+		b.update["$set"] = bson.M{}
+	}
+	for k, v := range fields {
+		b.update["$set"].(bson.M)[k] = v
+	}
+	return b
+}
+
+// SetStruct sets all fields from a struct
+func SetStruct(document any) *Builder {
+	// Convert struct to bson.M
+	bytes, err := bson.Marshal(document)
+	if err != nil {
+		// Return empty builder if marshal fails
+		return &Builder{update: bson.M{}}
+	}
+
+	var fields bson.M
+	if err := bson.Unmarshal(bytes, &fields); err != nil {
+		// Return empty builder if unmarshal fails
+		return &Builder{update: bson.M{}}
+	}
+
+	return &Builder{
+		update: bson.M{"$set": fields},
+	}
+}
+
+// SetStruct sets all fields from a struct (method version)
+func (b *Builder) SetStruct(document any) *Builder {
+	if b.update["$set"] == nil {
+		b.update["$set"] = bson.M{}
+	}
+
+	// Convert struct to bson.M
+	bytes, err := bson.Marshal(document)
+	if err != nil {
+		return b // Return existing builder if marshal fails
+	}
+
+	var fields bson.M
+	if err := bson.Unmarshal(bytes, &fields); err != nil {
+		return b // Return existing builder if unmarshal fails
+	}
+
+	// Merge fields into existing $set
+	for k, v := range fields {
+		b.update["$set"].(bson.M)[k] = v
+	}
+
+	return b
+}
+
 // Unset removes the specified fields
 func Unset(fields ...string) *Builder {
 	unsetDoc := bson.M{}
@@ -131,6 +198,73 @@ func (b *Builder) SetOnInsert(field string, value any) *Builder {
 		b.update["$setOnInsert"] = bson.M{}
 	}
 	b.update["$setOnInsert"].(bson.M)[field] = value
+	return b
+}
+
+// SetOnInsertMap sets multiple fields from a map only when an upsert inserts a document
+func SetOnInsertMap(fields map[string]any) *Builder {
+	setOnInsertFields := make(bson.M)
+	for k, v := range fields {
+		setOnInsertFields[k] = v
+	}
+	return &Builder{
+		update: bson.M{"$setOnInsert": setOnInsertFields},
+	}
+}
+
+// SetOnInsertMap sets multiple fields from a map only when an upsert inserts a document (method version)
+func (b *Builder) SetOnInsertMap(fields map[string]any) *Builder {
+	if b.update["$setOnInsert"] == nil {
+		b.update["$setOnInsert"] = bson.M{}
+	}
+	for k, v := range fields {
+		b.update["$setOnInsert"].(bson.M)[k] = v
+	}
+	return b
+}
+
+// SetOnInsertStruct sets all fields from a struct only when an upsert inserts a document
+func SetOnInsertStruct(document any) *Builder {
+	// Convert struct to bson.M
+	bytes, err := bson.Marshal(document)
+	if err != nil {
+		// Return empty builder if marshal fails
+		return &Builder{update: bson.M{}}
+	}
+
+	var fields bson.M
+	if err := bson.Unmarshal(bytes, &fields); err != nil {
+		// Return empty builder if unmarshal fails
+		return &Builder{update: bson.M{}}
+	}
+
+	return &Builder{
+		update: bson.M{"$setOnInsert": fields},
+	}
+}
+
+// SetOnInsertStruct sets all fields from a struct only when an upsert inserts a document (method version)
+func (b *Builder) SetOnInsertStruct(document any) *Builder {
+	if b.update["$setOnInsert"] == nil {
+		b.update["$setOnInsert"] = bson.M{}
+	}
+
+	// Convert struct to bson.M
+	bytes, err := bson.Marshal(document)
+	if err != nil {
+		return b // Return existing builder if marshal fails
+	}
+
+	var fields bson.M
+	if err := bson.Unmarshal(bytes, &fields); err != nil {
+		return b // Return existing builder if unmarshal fails
+	}
+
+	// Merge fields into existing $setOnInsert
+	for k, v := range fields {
+		b.update["$setOnInsert"].(bson.M)[k] = v
+	}
+
 	return b
 }
 

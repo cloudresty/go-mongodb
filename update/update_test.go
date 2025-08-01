@@ -266,6 +266,129 @@ func TestSetOnInsert(t *testing.T) {
 	}
 }
 
+func TestSetOnInsertMap(t *testing.T) {
+	fields := map[string]any{
+		"_id":        "test-id-123",
+		"created_at": time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		"title":      "Test Document",
+		"status":     "active",
+	}
+
+	u := New().SetOnInsertMap(fields)
+	result := u.Build()
+
+	if result["$setOnInsert"] == nil {
+		t.Error("Expected $setOnInsert operator")
+	}
+
+	setOnInsertFields := result["$setOnInsert"].(bson.M)
+	if setOnInsertFields["_id"] != "test-id-123" {
+		t.Error("Expected _id in $setOnInsert")
+	}
+	if setOnInsertFields["title"] != "Test Document" {
+		t.Error("Expected title in $setOnInsert")
+	}
+	if setOnInsertFields["status"] != "active" {
+		t.Error("Expected status in $setOnInsert")
+	}
+}
+
+func TestSetOnInsertStruct(t *testing.T) {
+	type TestDoc struct {
+		ID        string    `bson:"_id"`
+		Title     string    `bson:"title"`
+		Status    string    `bson:"status"`
+		CreatedAt time.Time `bson:"created_at"`
+	}
+
+	doc := TestDoc{
+		ID:        "test-id-456",
+		Title:     "Test Struct Document",
+		Status:    "pending",
+		CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	u := New().SetOnInsertStruct(doc)
+	result := u.Build()
+
+	if result["$setOnInsert"] == nil {
+		t.Error("Expected $setOnInsert operator")
+	}
+
+	setOnInsertFields := result["$setOnInsert"].(bson.M)
+	if setOnInsertFields["_id"] != "test-id-456" {
+		t.Error("Expected _id in $setOnInsert")
+	}
+	if setOnInsertFields["title"] != "Test Struct Document" {
+		t.Error("Expected title in $setOnInsert")
+	}
+	if setOnInsertFields["status"] != "pending" {
+		t.Error("Expected status in $setOnInsert")
+	}
+}
+
+func TestSetStruct(t *testing.T) {
+	type TestDoc struct {
+		Title  string `bson:"title"`
+		Status string `bson:"status"`
+		Count  int    `bson:"count"`
+	}
+
+	doc := TestDoc{
+		Title:  "Updated Document",
+		Status: "completed",
+		Count:  42,
+	}
+
+	u := New().SetStruct(doc)
+	result := u.Build()
+
+	if result["$set"] == nil {
+		t.Error("Expected $set operator")
+	}
+
+	setFields := result["$set"].(bson.M)
+	if setFields["title"] != "Updated Document" {
+		t.Errorf("Expected title 'Updated Document', got %v", setFields["title"])
+	}
+	if setFields["status"] != "completed" {
+		t.Errorf("Expected status 'completed', got %v", setFields["status"])
+	}
+	if setFields["count"] != int32(42) { // MongoDB driver converts int to int32
+		t.Errorf("Expected count 42 (int32), got %v (%T)", setFields["count"], setFields["count"])
+	}
+}
+
+func TestCombinedSetAndSetOnInsert(t *testing.T) {
+	u := New().
+		Set("updated_at", time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)).
+		SetOnInsert("created_at", time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)).
+		SetOnInsert("_id", "test-combined-123")
+
+	result := u.Build()
+
+	// Check $set operator
+	if result["$set"] == nil {
+		t.Error("Expected $set operator")
+	}
+	setFields := result["$set"].(bson.M)
+	if setFields["updated_at"] == nil {
+		t.Error("Expected updated_at in $set")
+	}
+
+	// Check $setOnInsert operator
+	if result["$setOnInsert"] == nil {
+		t.Error("Expected $setOnInsert operator")
+	}
+	setOnInsertFields := result["$setOnInsert"].(bson.M)
+	if setOnInsertFields["created_at"] == nil {
+		t.Error("Expected created_at in $setOnInsert")
+	}
+	if setOnInsertFields["_id"] != "test-combined-123" {
+		t.Error("Expected _id in $setOnInsert")
+	}
+}
+
 // Helper function to compare BSON documents
 func equalBSON(a, b bson.M) bool {
 	// Use deep equality check for robust comparison

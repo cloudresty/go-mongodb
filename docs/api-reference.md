@@ -146,11 +146,28 @@ type Logger interface {
 
 &nbsp;
 
+### Enhanced Find Operations
+
+| Function | Description |
+|----------|-------------|
+| `collection.FindWithOptions(ctx, filter, queryOpts) (*FindResult, error)` | Find documents with QueryOptions (sort, limit, skip, projection) |
+| `collection.FindOneWithOptions(ctx, filter, queryOpts) *FindOneResult` | Find single document with QueryOptions |
+| `collection.FindSorted(ctx, filter, sort, opts...) (*FindResult, error)` | Find documents with sort order |
+| `collection.FindOneSorted(ctx, filter, sort) *FindOneResult` | Find single document with sort order |
+| `collection.FindWithLimit(ctx, filter, limit) (*FindResult, error)` | Find documents with limit |
+| `collection.FindWithSkip(ctx, filter, skip) (*FindResult, error)` | Find documents with skip offset |
+| `collection.FindWithProjection(ctx, filter, projection) (*FindResult, error)` | Find documents with field projection |
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
 ### Advanced Operations
 
 | Function | Description |
 |----------|-------------|
 | `collection.Aggregate(ctx, pipeline) (*Cursor, error)` | Run aggregation pipeline |
+| `collection.AggregateWithPipeline(ctx, pipelineBuilder, opts...) (*AggregateResult, error)` | Run aggregation using pipeline builder |
 | `collection.Distinct(ctx, field, filter) ([]any, error)` | Get distinct values for a field |
 | `collection.Watch(ctx, pipeline, opts...) (*ChangeStream, error)` | Watch for changes |
 
@@ -280,15 +297,44 @@ type Logger interface {
 | Function | Description |
 |----------|-------------|
 | `pipeline.New()` | Create a new pipeline builder |
-| `builder.Match(filter)` | Add a match stage |
-| `builder.Project(fields)` | Add a project stage |
-| `builder.Sort(sorts)` | Add a sort stage |
-| `builder.Limit(limit)` | Add a limit stage |
-| `builder.Skip(skip)` | Add a skip stage |
-| `builder.Group(id, fields)` | Add a group stage |
-| `builder.Lookup(from, localField, foreignField, as)` | Add a lookup stage |
-| `builder.Unwind(path)` | Add an unwind stage |
-| `builder.AddFields(fields)` | Add an addFields stage |
+| `builder.Match(filter)` | Add a $match stage with filter builder |
+| `builder.MatchRaw(filter)` | Add a $match stage with raw bson.M |
+| `builder.Project(fields)` | Add a $project stage |
+| `builder.Sort(sorts)` | Add a $sort stage with bson.D |
+| `builder.SortMap(sorts)` | Add a $sort stage with map |
+| `builder.Limit(limit)` | Add a $limit stage |
+| `builder.Skip(skip)` | Add a $skip stage |
+| `builder.Group(id, fields)` | Add a $group stage |
+| `builder.Lookup(from, localField, foreignField, as)` | Add a $lookup stage |
+| `builder.Unwind(path)` | Add an $unwind stage |
+| `builder.UnwindWithOptions(path, preserveNull, arrayIndex)` | Add $unwind with options |
+| `builder.AddFields(fields)` | Add an $addFields stage |
+| `builder.ReplaceRoot(newRoot)` | Add a $replaceRoot stage |
+| `builder.Facet(facets)` | Add a $facet stage |
+| `builder.Count(field)` | Add a $count stage |
+| `builder.Sample(size)` | Add a $sample stage |
+| `builder.Raw(stage)` | Add a custom stage |
+| `builder.Build()` | Build pipeline as []bson.M |
+| `builder.ToBSONArray()` | Build pipeline as bson.A |
+
+#### Standalone Pipeline Functions
+
+| Function | Description |
+|----------|-------------|
+| `pipeline.Match(filter)` | Create pipeline starting with $match |
+| `pipeline.MatchRaw(filter)` | Create pipeline starting with raw $match |
+| `pipeline.Project(fields)` | Create pipeline starting with $project |
+| `pipeline.Sort(sorts)` | Create pipeline starting with $sort |
+| `pipeline.SortMap(sorts)` | Create pipeline starting with $sort from map |
+| `pipeline.Limit(limit)` | Create pipeline starting with $limit |
+| `pipeline.Skip(skip)` | Create pipeline starting with $skip |
+| `pipeline.Group(id, fields)` | Create pipeline starting with $group |
+
+#### Aggregation with Pipeline Builder
+
+| Function | Description |
+|----------|-------------|
+| `collection.AggregateWithPipeline(ctx, pipelineBuilder, opts...)` | Execute aggregation with pipeline builder |
 
 🔝 [back to top](#api-reference)
 
@@ -406,6 +452,8 @@ type Logger interface {
 | Type | Description |
 |------|-------------|
 | `FindOneResult` | Result of single document find |
+| `FindResult` | Result of enhanced find operations with convenient cursor methods |
+| `AggregateResult` | Result of aggregation operations with cursor functionality |
 | `Cursor` | Cursor for iterating over multiple documents |
 | `ChangeStream` | Stream for watching collection changes |
 

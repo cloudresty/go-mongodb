@@ -404,14 +404,15 @@ func (col *Collection) FindOneWithOptions(ctx context.Context, filterBuilder *fi
 // Convenience methods for common sort operations
 
 // FindSorted finds documents with a sort order
-func (col *Collection) FindSorted(ctx context.Context, filterBuilder *filter.Builder, sort bson.D, opts ...options.Lister[options.FindOptions]) (*FindResult, error) {
-	queryOpts := &QueryOptions{Sort: sort}
+func (col *Collection) FindSorted(ctx context.Context, filterBuilder *filter.Builder, sort SortSpec, opts ...options.Lister[options.FindOptions]) (*FindResult, error) {
+	sortBSON := convertSortSpec(sort)
+	queryOpts := &QueryOptions{Sort: sortBSON}
 
 	// For backward compatibility, if additional options are provided,
 	// fall back to the original Find method with sort option manually added
 	if len(opts) > 0 {
 		// Create a sort option and add it to the existing options
-		sortOpt := options.Find().SetSort(sort)
+		sortOpt := options.Find().SetSort(sortBSON)
 		allOpts := append([]options.Lister[options.FindOptions]{sortOpt}, opts...)
 		return col.Find(ctx, filterBuilder, allOpts...)
 	}
@@ -420,8 +421,9 @@ func (col *Collection) FindSorted(ctx context.Context, filterBuilder *filter.Bui
 }
 
 // FindOneSorted finds a single document with a sort order
-func (col *Collection) FindOneSorted(ctx context.Context, filterBuilder *filter.Builder, sort bson.D) *FindOneResult {
-	queryOpts := &QueryOptions{Sort: sort}
+func (col *Collection) FindOneSorted(ctx context.Context, filterBuilder *filter.Builder, sort SortSpec) *FindOneResult {
+	sortBSON := convertSortSpec(sort)
+	queryOpts := &QueryOptions{Sort: sortBSON}
 	return col.FindOneWithOptions(ctx, filterBuilder, queryOpts)
 }
 
@@ -1066,4 +1068,47 @@ func enhanceReplacementDocument(doc any) bson.M {
 	}
 
 	return enhanced
+}
+
+// Convenience methods using our BSON helpers
+
+// FindAscending finds documents sorted by a field in ascending order
+func (col *Collection) FindAscending(ctx context.Context, filterBuilder *filter.Builder, field string) (*FindResult, error) {
+	return col.FindSorted(ctx, filterBuilder, SortAsc(field))
+}
+
+// FindDescending finds documents sorted by a field in descending order
+func (col *Collection) FindDescending(ctx context.Context, filterBuilder *filter.Builder, field string) (*FindResult, error) {
+	return col.FindSorted(ctx, filterBuilder, SortDesc(field))
+}
+
+// FindOneAscending finds a single document sorted by a field in ascending order
+func (col *Collection) FindOneAscending(ctx context.Context, filterBuilder *filter.Builder, field string) *FindOneResult {
+	return col.FindOneSorted(ctx, filterBuilder, SortAsc(field))
+}
+
+// FindOneDescending finds a single document sorted by a field in descending order
+func (col *Collection) FindOneDescending(ctx context.Context, filterBuilder *filter.Builder, field string) *FindOneResult {
+	return col.FindOneSorted(ctx, filterBuilder, SortDesc(field))
+}
+
+// FindWithProjectionFields finds documents with specific field projections
+func (col *Collection) FindWithProjectionFields(ctx context.Context, filterBuilder *filter.Builder, includeFields, excludeFields []string) (*FindResult, error) {
+	var projectionSpecs []ProjectionSpec
+	if len(includeFields) > 0 {
+		projectionSpecs = append(projectionSpecs, Include(includeFields...))
+	}
+	if len(excludeFields) > 0 {
+		projectionSpecs = append(projectionSpecs, Exclude(excludeFields...))
+	}
+
+	projection := Projection(projectionSpecs...)
+
+	// Convert to bson.M for compatibility with existing method
+	projectionM := make(bson.M)
+	for _, elem := range projection {
+		projectionM[elem.Key] = elem.Value
+	}
+
+	return col.FindWithProjection(ctx, filterBuilder, projectionM)
 }

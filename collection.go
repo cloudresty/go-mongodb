@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudresty/go-mongodb/filter"
+	"github.com/cloudresty/go-mongodb/pipeline"
 	"github.com/cloudresty/go-mongodb/update"
 	"github.com/cloudresty/ulid"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -293,6 +294,158 @@ func (col *Collection) Find(ctx context.Context, filterBuilder *filter.Builder, 
 func (col *Collection) FindByULID(ctx context.Context, ulid string) *FindOneResult {
 	filterBuilder := filter.Eq("_id", ulid)
 	return col.FindOne(ctx, filterBuilder)
+}
+
+// FindWithOptions finds documents with QueryOptions for convenient sorting, limiting, etc.
+func (col *Collection) FindWithOptions(ctx context.Context, filterBuilder *filter.Builder, queryOpts *QueryOptions) (*FindResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Build filter document
+	filterDoc := bson.M{}
+	if filterBuilder != nil {
+		filterDoc = filterBuilder.Build()
+	}
+
+	// Convert QueryOptions to MongoDB options
+	opts := []options.Lister[options.FindOptions]{}
+	if queryOpts != nil {
+		findOpts := options.Find()
+
+		if len(queryOpts.Sort) > 0 {
+			findOpts.SetSort(queryOpts.Sort)
+		}
+
+		if queryOpts.Limit != nil && *queryOpts.Limit > 0 {
+			findOpts.SetLimit(*queryOpts.Limit)
+		}
+
+		if queryOpts.Skip != nil && *queryOpts.Skip > 0 {
+			findOpts.SetSkip(*queryOpts.Skip)
+		}
+
+		if len(queryOpts.Projection) > 0 {
+			findOpts.SetProjection(queryOpts.Projection)
+		}
+
+		opts = append(opts, findOpts)
+	}
+
+	col.client.config.Logger.Debug("Finding documents with options",
+		"collection", col.name,
+		"hasSort", queryOpts != nil && len(queryOpts.Sort) > 0,
+		"limit", queryOpts != nil && queryOpts.Limit != nil && *queryOpts.Limit > 0,
+		"skip", queryOpts != nil && queryOpts.Skip != nil && *queryOpts.Skip > 0)
+
+	cursor, err := col.collection.Find(ctx, filterDoc, opts...)
+	if err != nil {
+		col.client.config.Logger.Error("Failed to find documents with options",
+			"error", err.Error(),
+			"collection", col.name)
+		return nil, err
+	}
+
+	return &FindResult{
+		cursor: cursor,
+	}, nil
+}
+
+// FindOneWithOptions finds a single document with QueryOptions
+func (col *Collection) FindOneWithOptions(ctx context.Context, filterBuilder *filter.Builder, queryOpts *QueryOptions) *FindOneResult {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Build filter document
+	filterDoc := bson.M{}
+	if filterBuilder != nil {
+		filterDoc = filterBuilder.Build()
+	}
+
+	// Convert QueryOptions to MongoDB options
+	opts := []options.Lister[options.FindOneOptions]{}
+	if queryOpts != nil {
+		findOneOpts := options.FindOne()
+
+		if len(queryOpts.Sort) > 0 {
+			findOneOpts.SetSort(queryOpts.Sort)
+		}
+
+		if queryOpts.Skip != nil && *queryOpts.Skip > 0 {
+			findOneOpts.SetSkip(*queryOpts.Skip)
+		}
+
+		if len(queryOpts.Projection) > 0 {
+			findOneOpts.SetProjection(queryOpts.Projection)
+		}
+
+		opts = append(opts, findOneOpts)
+	}
+
+	col.client.config.Logger.Debug("Finding one document with options",
+		"collection", col.name,
+		"hasSort", queryOpts != nil && len(queryOpts.Sort) > 0)
+
+	result := col.collection.FindOne(ctx, filterDoc, opts...)
+
+	// Track read operation
+	col.client.incrementOperationCount()
+
+	return &FindOneResult{
+		result: result,
+	}
+}
+
+// Convenience methods for common sort operations
+
+// FindSorted finds documents with a sort order
+func (col *Collection) FindSorted(ctx context.Context, filterBuilder *filter.Builder, sort bson.D, opts ...options.Lister[options.FindOptions]) (*FindResult, error) {
+	queryOpts := &QueryOptions{Sort: sort}
+
+	// For backward compatibility, if additional options are provided,
+	// fall back to the original Find method with sort option manually added
+	if len(opts) > 0 {
+		// Create a sort option and add it to the existing options
+		sortOpt := options.Find().SetSort(sort)
+		allOpts := append([]options.Lister[options.FindOptions]{sortOpt}, opts...)
+		return col.Find(ctx, filterBuilder, allOpts...)
+	}
+
+	return col.FindWithOptions(ctx, filterBuilder, queryOpts)
+}
+
+// FindOneSorted finds a single document with a sort order
+func (col *Collection) FindOneSorted(ctx context.Context, filterBuilder *filter.Builder, sort bson.D) *FindOneResult {
+	queryOpts := &QueryOptions{Sort: sort}
+	return col.FindOneWithOptions(ctx, filterBuilder, queryOpts)
+}
+
+// FindWithLimit finds documents with a limit
+func (col *Collection) FindWithLimit(ctx context.Context, filterBuilder *filter.Builder, limit int64) (*FindResult, error) {
+	queryOpts := &QueryOptions{Limit: &limit}
+	return col.FindWithOptions(ctx, filterBuilder, queryOpts)
+}
+
+// FindWithSkip finds documents with a skip offset
+func (col *Collection) FindWithSkip(ctx context.Context, filterBuilder *filter.Builder, skip int64) (*FindResult, error) {
+	queryOpts := &QueryOptions{Skip: &skip}
+	return col.FindWithOptions(ctx, filterBuilder, queryOpts)
+}
+
+// FindWithProjection finds documents with field projection
+func (col *Collection) FindWithProjection(ctx context.Context, filterBuilder *filter.Builder, projection bson.M) (*FindResult, error) {
+	// Convert bson.M to bson.D for QueryOptions
+	projectionD := make(bson.D, 0, len(projection))
+	for key, value := range projection {
+		projectionD = append(projectionD, bson.E{Key: key, Value: value})
+	}
+	queryOpts := &QueryOptions{Projection: projectionD}
+	return col.FindWithOptions(ctx, filterBuilder, queryOpts)
 }
 
 // UpdateOne updates a single document
@@ -586,6 +739,39 @@ func (col *Collection) Aggregate(ctx context.Context, pipeline any, opts ...opti
 		"collection", col.name)
 
 	return cursor, nil
+}
+
+// AggregateWithPipeline performs an aggregation operation using a pipeline builder
+func (col *Collection) AggregateWithPipeline(ctx context.Context, pipelineBuilder *pipeline.Builder, opts ...options.Lister[options.AggregateOptions]) (*AggregateResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Build pipeline
+	pipelineDoc := bson.A{}
+	if pipelineBuilder != nil {
+		pipelineDoc = pipelineBuilder.ToBSONArray()
+	}
+
+	col.client.config.Logger.Debug("Aggregating with pipeline builder",
+		"collection", col.name,
+		"stages", len(pipelineDoc))
+
+	cursor, err := col.collection.Aggregate(ctx, pipelineDoc, opts...)
+	if err != nil {
+		col.client.config.Logger.Error("Failed to aggregate with pipeline",
+			"error", err.Error(),
+			"collection", col.name)
+		return nil, err
+	}
+
+	col.client.incrementOperationCount()
+
+	return &AggregateResult{
+		cursor: cursor,
+	}, nil
 }
 
 // Indexes returns the index operations for this collection

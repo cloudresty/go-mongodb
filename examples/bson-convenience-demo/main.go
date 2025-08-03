@@ -59,7 +59,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to find ascending:", err)
 	}
-	defer result.Close(ctx)
+	defer func() {
+		if err := result.Close(ctx); err != nil {
+			log.Printf("Error closing result: %v", err)
+		}
+	}()
 
 	var engineeringUsers []mongodb.M
 	if err := result.All(ctx, &engineeringUsers); err != nil {
@@ -82,7 +86,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to find with map sort:", err)
 	}
-	defer result2.Close(ctx)
+	defer func() {
+		if err := result2.Close(ctx); err != nil {
+			log.Printf("Error closing result2: %v", err)
+		}
+	}()
 
 	var allUsers []mongodb.M
 	if err := result2.All(ctx, &allUsers); err != nil {
@@ -103,7 +111,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to find with complex sort:", err)
 	}
-	defer result3.Close(ctx)
+	defer func() {
+		if err := result3.Close(ctx); err != nil {
+			log.Printf("Error closing result3: %v", err)
+		}
+	}()
 
 	var sortedUsers []mongodb.M
 	if err := result3.All(ctx, &sortedUsers); err != nil {
@@ -132,7 +144,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to find with projection:", err)
 	}
-	defer result4.Close(ctx)
+	defer func() {
+		if err := result4.Close(ctx); err != nil {
+			log.Printf("Error closing result4: %v", err)
+		}
+	}()
 
 	var projectedUsers []mongodb.M
 	if err := result4.All(ctx, &projectedUsers); err != nil {
@@ -163,7 +179,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to find with manual sort:", err)
 	}
-	defer result5.Close(ctx)
+	defer func() {
+		if err := result5.Close(ctx); err != nil {
+			log.Printf("Error closing result5: %v", err)
+		}
+	}()
 
 	var salesUsers []mongodb.M
 	if err := result5.All(ctx, &salesUsers); err != nil {

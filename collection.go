@@ -988,6 +988,16 @@ func addUpdatedAt(update any) any {
 		enhanced := make(bson.M, len(u))
 		maps.Copy(enhanced, u)
 
+		// Check if updated_at already exists in $setOnInsert (for upserts)
+		if setOnInsertOp, exists := enhanced["$setOnInsert"]; exists {
+			if setOnInsertMap, ok := setOnInsertOp.(bson.M); ok {
+				if _, hasUpdatedAt := setOnInsertMap["updated_at"]; hasUpdatedAt {
+					// updated_at already in $setOnInsert, don't add to $set to avoid conflict
+					return enhanced
+				}
+			}
+		}
+
 		// Add updated_at to $set operations
 		if setOp, exists := enhanced["$set"]; exists {
 			if setMap, ok := setOp.(bson.M); ok {

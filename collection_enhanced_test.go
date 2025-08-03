@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/cloudresty/go-mongodb/filter"
 	"github.com/cloudresty/go-mongodb/pipeline"
@@ -446,5 +447,141 @@ func TestQueryOptionsEmptyValues(t *testing.T) {
 		if err := result.Decode(&doc); err != nil {
 			t.Errorf("Failed to decode with empty QueryOptions: %v", err)
 		}
+	}
+}
+
+func TestUpsertByFieldTimestampConflict(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client := setupTestClientForEnhanced(t)
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.Logf("Failed to close client: %v", err)
+		}
+	}()
+
+	collection := client.Collection("test_upsert_timestamp_conflict")
+	ctx := context.Background()
+
+	// Clean up any existing data
+	_, _ = collection.DeleteMany(ctx, filter.New())
+
+	// Test struct that includes updated_at (similar to the user's Event struct)
+	type TestEvent struct {
+		ID        string    `bson:"_id,omitempty"`
+		URL       string    `bson:"url"`
+		Title     string    `bson:"title"`
+		CreatedAt time.Time `bson:"created_at"`
+		UpdatedAt time.Time `bson:"updated_at"`
+	}
+
+	// Create an event with timestamp fields set (this is what causes the conflict)
+	now := time.Now()
+	event := &TestEvent{
+		ID:        "test-event-1",
+		URL:       "https://example.com/event/1",
+		Title:     "Test Event",
+		CreatedAt: now,
+		UpdatedAt: now, // This field causes the conflict when both in $setOnInsert and $set
+	}
+
+	// This should not cause a MongoDB conflict error
+	result, err := collection.UpsertByField(ctx, "url", event.URL, event)
+	if err != nil {
+		t.Fatalf("UpsertByField failed with timestamp conflict: %v", err)
+	}
+
+	// Verify the upsert was successful
+	if result.UpsertedCount != 1 {
+		t.Errorf("Expected UpsertedCount=1, got %d", result.UpsertedCount)
+	}
+
+	// Test second upsert with same URL (should match existing document)
+	event2 := &TestEvent{
+		ID:        "test-event-2",                // Different ID
+		URL:       "https://example.com/event/1", // Same URL
+		Title:     "Updated Test Event",
+		CreatedAt: time.Now().Add(time.Hour),
+		UpdatedAt: time.Now().Add(time.Hour),
+	}
+
+	result2, err := collection.UpsertByField(ctx, "url", event2.URL, event2)
+	if err != nil {
+		t.Fatalf("Second UpsertByField failed: %v", err)
+	}
+
+	// Should match existing document, not insert new one
+	if result2.MatchedCount != 1 {
+		t.Errorf("Expected MatchedCount=1, got %d", result2.MatchedCount)
+	}
+	if result2.UpsertedCount != 0 {
+		t.Errorf("Expected UpsertedCount=0, got %d", result2.UpsertedCount)
+	}
+
+	// Verify the original document was not modified (since we use $setOnInsert)
+	foundEvent := &TestEvent{}
+	findResult := collection.FindOne(ctx, filter.Eq("url", event.URL))
+	if err := findResult.Decode(foundEvent); err != nil {
+		t.Fatalf("Failed to find upserted document: %v", err)
+	}
+
+	// Original values should be preserved
+	if foundEvent.Title != "Test Event" {
+		t.Errorf("Expected title='Test Event', got '%s'", foundEvent.Title)
+	}
+	if foundEvent.ID != "test-event-1" {
+		t.Errorf("Expected ID='test-event-1', got '%s'", foundEvent.ID)
+	}
+}
+
+func TestUpsertByFieldMapTimestampConflict(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client := setupTestClientForEnhanced(t)
+	defer func() {
+		if err := client.Close(); err != nil {
+			t.Logf("Failed to close client: %v", err)
+		}
+	}()
+
+	collection := client.Collection("test_upsert_map_timestamp_conflict")
+	ctx := context.Background()
+
+	// Clean up any existing data
+	_, _ = collection.DeleteMany(ctx, filter.New())
+
+	// Test with map that includes updated_at
+	eventMap := map[string]any{
+		"_id":        "test-event-map-1",
+		"url":        "https://example.com/event/map/1",
+		"title":      "Test Map Event",
+		"created_at": time.Now(),
+		"updated_at": time.Now(), // This field causes the conflict
+	}
+
+	// This should not cause a MongoDB conflict error
+	result, err := collection.UpsertByFieldMap(ctx, "url", eventMap["url"], eventMap)
+	if err != nil {
+		t.Fatalf("UpsertByFieldMap failed with timestamp conflict: %v", err)
+	}
+
+	// Verify the upsert was successful
+	if result.UpsertedCount != 1 {
+		t.Errorf("Expected UpsertedCount=1, got %d", result.UpsertedCount)
+	}
+
+	// Verify the document exists
+	var foundDoc bson.M
+	findResult := collection.FindOne(ctx, filter.Eq("url", eventMap["url"]))
+	if err := findResult.Decode(&foundDoc); err != nil {
+		t.Fatalf("Failed to find upserted document: %v", err)
+	}
+
+	if foundDoc["title"] != "Test Map Event" {
+		t.Errorf("Expected title='Test Map Event', got '%v'", foundDoc["title"])
 	}
 }

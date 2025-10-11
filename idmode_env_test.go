@@ -6,6 +6,10 @@ import (
 )
 
 func TestIDModeEnvironmentConfiguration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	tests := []struct {
 		name   string
 		envVal string
@@ -65,6 +69,10 @@ func TestIDModeEnvironmentConfiguration(t *testing.T) {
 }
 
 func TestDefaultIDMode(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	// Clear any existing environment variable
 	_ = os.Unsetenv("MONGODB_ID_MODE")
 

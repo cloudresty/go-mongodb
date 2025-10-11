@@ -3,7 +3,6 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"maps"
 	"time"
 
 	"github.com/cloudresty/go-mongodb/filter"
@@ -131,15 +130,6 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 		}
 	}
 
-	// Add created_at and updated_at timestamps
-	now := time.Now()
-	if _, exists := docMap["created_at"]; !exists {
-		docMap["created_at"] = now
-	}
-	if _, exists := docMap["updated_at"]; !exists {
-		docMap["updated_at"] = now
-	}
-
 	result, err := col.collection.InsertOne(ctx, docMap, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
@@ -156,7 +146,7 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 
 	return &InsertOneResult{
 		InsertedID:  result.InsertedID.(string),
-		GeneratedAt: now,
+		GeneratedAt: time.Now(),
 	}, nil
 }
 
@@ -199,14 +189,6 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 			if idStr, ok := docMap["_id"].(string); ok {
 				generatedIDs = append(generatedIDs, idStr)
 			}
-		}
-
-		// Add timestamps
-		if _, exists := docMap["created_at"]; !exists {
-			docMap["created_at"] = now
-		}
-		if _, exists := docMap["updated_at"]; !exists {
-			docMap["updated_at"] = now
 		}
 
 		processedDocs = append(processedDocs, docMap)
@@ -469,10 +451,7 @@ func (col *Collection) UpdateOne(ctx context.Context, filterBuilder *filter.Buil
 		updateDoc = updateBuilder.Build()
 	}
 
-	// Add updated_at timestamp
-	enhancedUpdate := addUpdatedAt(updateDoc)
-
-	result, err := col.collection.UpdateOne(ctx, filterDoc, enhancedUpdate, opts...)
+	result, err := col.collection.UpdateOne(ctx, filterDoc, updateDoc, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
 		col.client.config.Logger.Error("Failed to update document",
@@ -520,10 +499,7 @@ func (col *Collection) UpdateMany(ctx context.Context, filterBuilder *filter.Bui
 		updateDoc = updateBuilder.Build()
 	}
 
-	// Add updated_at timestamp
-	enhancedUpdate := addUpdatedAt(updateDoc)
-
-	result, err := col.collection.UpdateMany(ctx, filterDoc, enhancedUpdate, opts...)
+	result, err := col.collection.UpdateMany(ctx, filterDoc, updateDoc, opts...)
 	if err != nil {
 		col.client.config.Logger.Error("Failed to update documents",
 			"error", err.Error(),
@@ -563,10 +539,7 @@ func (col *Collection) ReplaceOne(ctx context.Context, filterBuilder *filter.Bui
 		filterDoc = filterBuilder.Build()
 	}
 
-	// Enhance the replacement document
-	enhanced := enhanceReplacementDocument(replacement)
-
-	result, err := col.collection.ReplaceOne(ctx, filterDoc, enhanced, opts...)
+	result, err := col.collection.ReplaceOne(ctx, filterDoc, replacement, opts...)
 	if err != nil {
 		col.client.config.Logger.Error("Failed to replace document",
 			"error", err.Error(),
@@ -943,9 +916,6 @@ type UpsertOptions struct {
 	// OnlyInsert when true, ensures existing documents are never modified
 	// This is the default behavior when using $setOnInsert
 	OnlyInsert bool
-
-	// SkipTimestamps when true, disables automatic timestamp addition
-	SkipTimestamps bool
 }
 
 // UpsertByFieldWithOptions performs an atomic upsert with additional configuration options
@@ -979,106 +949,6 @@ func (col *Collection) UpsertByFieldWithOptions(ctx context.Context, field strin
 }
 
 // Helper functions
-
-// addUpdatedAt adds or updates the updated_at field in an update document
-func addUpdatedAt(update any) any {
-	switch u := update.(type) {
-	case bson.M:
-		// Deep copy to avoid modifying the original
-		enhanced := make(bson.M, len(u))
-		maps.Copy(enhanced, u)
-
-		// Check if updated_at already exists in $setOnInsert (for upserts)
-		if setOnInsertOp, exists := enhanced["$setOnInsert"]; exists {
-			if setOnInsertMap, ok := setOnInsertOp.(bson.M); ok {
-				if _, hasUpdatedAt := setOnInsertMap["updated_at"]; hasUpdatedAt {
-					// updated_at already in $setOnInsert, don't add to $set to avoid conflict
-					return enhanced
-				}
-			}
-		}
-
-		// Add updated_at to $set operations
-		if setOp, exists := enhanced["$set"]; exists {
-			if setMap, ok := setOp.(bson.M); ok {
-				setMap["updated_at"] = time.Now()
-			}
-		} else {
-			enhanced["$set"] = bson.M{"updated_at": time.Now()}
-		}
-		return enhanced
-
-	case bson.D:
-		// Convert bson.D to bson.M
-		m := make(bson.M)
-		for _, elem := range u {
-			m[elem.Key] = elem.Value
-		}
-		return addUpdatedAt(m)
-
-	default:
-		// For other types, try to convert to bson.M
-		bytes, err := bson.Marshal(update)
-		if err != nil {
-			// If conversion fails, return original with a simple wrapper
-			return bson.M{
-				"$set": bson.M{
-					"updated_at": time.Now(),
-				},
-			}
-		}
-
-		var m bson.M
-		if err := bson.Unmarshal(bytes, &m); err != nil {
-			return bson.M{
-				"$set": bson.M{
-					"updated_at": time.Now(),
-				},
-			}
-		}
-
-		return addUpdatedAt(m)
-	}
-}
-
-// enhanceReplacementDocument adds timestamps and ULID to replacement documents
-func enhanceReplacementDocument(doc any) bson.M {
-	var enhanced bson.M
-
-	switch d := doc.(type) {
-	case bson.M:
-		enhanced = make(bson.M, len(d)+2) // +2 for potential timestamps
-		maps.Copy(enhanced, d)
-	case bson.D:
-		enhanced = make(bson.M)
-		for _, elem := range d {
-			enhanced[elem.Key] = elem.Value
-		}
-	default:
-		// Try to convert to bson.M
-		bytes, err := bson.Marshal(doc)
-		if err != nil {
-			enhanced = bson.M{}
-		} else {
-			if err := bson.Unmarshal(bytes, &enhanced); err != nil {
-				enhanced = bson.M{}
-			}
-		}
-	}
-
-	// Add or update timestamps
-	now := time.Now()
-	if _, exists := enhanced["updated_at"]; !exists {
-		enhanced["updated_at"] = now
-	}
-
-	// Only add created_at if it doesn't exist (preserve original creation time)
-	if _, exists := enhanced["created_at"]; !exists {
-		enhanced["created_at"] = now
-	}
-
-	return enhanced
-}
 
 // Convenience methods using our BSON helpers
 

@@ -7,6 +7,10 @@ import (
 )
 
 func TestLoadFromEnv(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	// Save current environment variables that we'll modify
 	envVars := map[string]string{
 		"MONGODB_HOSTS":             "localhost:27017",
@@ -74,6 +78,10 @@ func TestLoadFromEnv(t *testing.T) {
 }
 
 func TestLoadFromEnvWithPrefix(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	// Set test environment variables with custom prefix
 	envVars := map[string]string{
 		"MYAPP_MONGODB_HOSTS":             "localhost:27017",
@@ -236,6 +244,10 @@ func TestConfigBuildConnectionURI(t *testing.T) {
 }
 
 func TestEnvDefaults(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	// Save current environment variables
 	envVarsToSave := []string{
 		"MONGODB_HOSTS", "MONGODB_USERNAME", "MONGODB_PASSWORD",

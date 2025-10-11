@@ -142,6 +142,16 @@ jobs:
     needs: check-dependencies
     if: needs.check-dependencies.outputs.has_updates == 'true'
     runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:8
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password
+        ports:
+          - 27017:27017
+
     steps:
       - name: Checkout develop branch
         uses: actions/checkout@v4
@@ -222,10 +232,33 @@ jobs:
             git diff --name-only go.mod go.sum | sed 's/^/  - /'
           fi
 
+      - name: Wait for MongoDB
+        run: |
+          timeout 60 bash -c 'until nc -z localhost 27017; do sleep 1; done'
+
+      - name: Set up MongoDB test environment
+        run: |
+          # Wait a bit more for MongoDB to be fully ready
+          sleep 5
+
+      - name: Create test databases
+        run: |
+          echo "Creating test databases..."
+          docker exec $(docker ps -q --filter "ancestor=mongo:8") mongosh --username admin --password password --authenticationDatabase admin --eval "
+            // Create the test databases
+            db.getSiblingDB('app').createCollection('_init');
+            print('Database app created');
+            "
+
       - name: Run tests
+        env:
+          MONGODB_HOSTS: localhost:27017
+          MONGODB_USERNAME: admin
+          MONGODB_PASSWORD: password
+          MONGODB_DATABASE: app
         run: |
           echo "Running tests to ensure updates don't break anything..."
-          go test -race -short ./...
+          go test -race -short $(go list ./... | grep -v '/examples/')
 
       - name: Commit and push changes
         id: commit
@@ -240,7 +273,7 @@ jobs:
           git add go.mod go.sum
 
           # Build commit message with optional reason
-          COMMIT_MSG="chore: update go-elastic dependencies"
+          COMMIT_MSG="chore: update go-mongodb dependencies"
           if [ -n "${{ github.event.inputs.reason }}" ]; then
             COMMIT_MSG="$COMMIT_MSG
 

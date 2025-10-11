@@ -3,7 +3,6 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -621,38 +620,6 @@ func generateULIDFromTime(t time.Time) string {
 	timestamp := uint64(t.UnixMilli())
 	id, _ := ulid.NewTime(timestamp)
 	return id
-}
-
-// enhanceDocument adds ID and metadata to a document based on client configuration
-func (c *Client) enhanceDocument(doc any) bson.M {
-	timestamp := time.Now()
-
-	enhanced := bson.M{
-		"created_at": timestamp,
-		"updated_at": timestamp,
-	}
-
-	// Merge with existing document first
-	if docBytes, err := bson.Marshal(doc); err == nil {
-		var docMap bson.M
-		if err := bson.Unmarshal(docBytes, &docMap); err == nil {
-			maps.Copy(enhanced, docMap)
-		}
-	}
-
-	// Generate ID based on client configuration, but only if not already provided
-	if _, hasID := enhanced["_id"]; !hasID {
-		switch c.config.IDMode {
-		case IDModeObjectID:
-			enhanced["_id"] = bson.NewObjectID()
-		case IDModeCustom:
-			// Don't add any _id, let user provide it or let MongoDB auto-generate
-		default: // IDModeULID
-			enhanced["_id"] = generateULID()
-		}
-	}
-
-	return enhanced
 }
 
 // ClientStats represents internal client metrics and statistics

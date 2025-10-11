@@ -223,21 +223,20 @@ func GenerateULIDFromTime(t time.Time) string {
 	return generateULIDFromTime(t)
 }
 
-// EnhanceDocument adds ULID and metadata to a document (uses default ULID mode)
+// EnhanceDocument adds ULID to a document (uses default ULID mode)
 func EnhanceDocument(doc any) bson.M {
-	timestamp := time.Now()
+	var enhanced bson.M
 
-	enhanced := bson.M{
-		"created_at": timestamp,
-		"updated_at": timestamp,
-	}
-
-	// Merge with existing document first
+	// Convert document to bson.M
 	if docBytes, err := bson.Marshal(doc); err == nil {
 		var docMap bson.M
 		if err := bson.Unmarshal(docBytes, &docMap); err == nil {
-			maps.Copy(enhanced, docMap)
+			enhanced = docMap
 		}
+	}
+
+	if enhanced == nil {
+		enhanced = bson.M{}
 	}
 
 	// Generate ULID if no _id provided (default behavior)

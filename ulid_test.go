@@ -62,12 +62,12 @@ func TestULIDDocumentGeneration(t *testing.T) {
 		t.Errorf("Invalid ULID generated: %s, error: %v", ulidStr, err)
 	}
 
-	// Verify other enhancement fields
-	if _, exists := insertedDoc["created_at"]; !exists {
-		t.Error("Expected created_at field to be present")
+	// Verify that only ULID is added (no automatic timestamps)
+	if _, exists := insertedDoc["created_at"]; exists {
+		t.Error("Unexpected created_at field found - automatic timestamps should be removed")
 	}
-	if _, exists := insertedDoc["updated_at"]; !exists {
-		t.Error("Expected updated_at field to be present")
+	if _, exists := insertedDoc["updated_at"]; exists {
+		t.Error("Unexpected updated_at field found - automatic timestamps should be removed")
 	}
 
 	t.Logf("Generated ULID: %s", ulidStr)

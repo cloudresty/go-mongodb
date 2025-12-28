@@ -17,8 +17,10 @@ We've crafted this API to be powerful, consistent, and idiomatically Go. You'll 
 ### Client Creation
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `NewClient(options...)` | Creates a client with functional options (use `FromEnv()` to load from environment variables) |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -27,7 +29,7 @@ We've crafted this API to be powerful, consistent, and idiomatically Go. You'll 
 #### Client Options
 
 | Option | Description |
-|--------|-------------|
+| :--- | :--- |
 | `WithHosts(hosts ...string)` | Sets custom hosts (overrides environment) |
 | `WithCredentials(username, password string)` | Sets username and password for authentication (overrides environment) |
 | `WithDatabase(name string)` | Sets default database (overrides environment) |
@@ -40,6 +42,8 @@ We've crafted this API to be powerful, consistent, and idiomatically Go. You'll 
 | `WithDirectConnection(enabled bool)` | Enables direct connection mode (bypasses replica set discovery) |
 | `WithTLS(enabled bool)` | Enables or disables TLS |
 | `WithLogger(logger Logger)` | Sets a custom logger implementation (defaults to NopLogger - silent) |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -58,13 +62,19 @@ type Logger interface {
 }
 ```
 
+&nbsp;
+
 **Default behavior**: If no logger is provided via `WithLogger()`, the client uses `NopLogger` (silent - no output).
+
+&nbsp;
 
 **Usage patterns**:
 
 - Fields are provided as alternating key-value pairs: `logger.Info("message", "key1", value1, "key2", value2)`
 - Supported field types: `string`, `int`, `int64`, `time.Duration`, `bool`, `error`
 - See [Custom Logging Example](../examples/custom-logger-emit/) for `emit` library integration
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -73,11 +83,13 @@ type Logger interface {
 ### Connection Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `client.Ping(ctx context.Context) error` | Test connection and update internal state |
 | `client.Stats() *ClientStats` | Get connection statistics (reconnect count, operations, etc.) |
 | `client.Name() string` | Get the connection name for this client instance |
 | `client.Close() error` | Close the client and stop background routines |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -86,9 +98,11 @@ type Logger interface {
 ## Environment Configuration
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `FromEnv() Option` | Load configuration from `MONGODB_*` environment variables (functional option) |
 | `FromEnvWithPrefix(prefix string) Option` | Load configuration with custom prefix (e.g., `MYAPP_MONGODB_*`) (functional option) |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -101,12 +115,14 @@ type Logger interface {
 ### Database Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `client.Database(name string) *Database` | Get a database handle for the specified name |
 | `database.Name() string` | Get the database name |
 | `database.Collection(name string) *Collection` | Get a collection handle for the specified name |
 | `database.Drop(ctx context.Context) error` | Drop the database |
 | `database.ListCollections(ctx context.Context) ([]string, error)` | List all collections in the database |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -115,9 +131,11 @@ type Logger interface {
 ### Collection Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `collection.Name() string` | Get the collection name |
 | `collection.Database() *Database` | Get the parent database |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -130,7 +148,7 @@ type Logger interface {
 ### Basic CRUD Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `collection.InsertOne(ctx, document) (*InsertOneResult, error)` | Insert a single document |
 | `collection.InsertMany(ctx, documents) (*InsertManyResult, error)` | Insert multiple documents |
 | `collection.FindOne(ctx, filter) *FindOneResult` | Find a single document |
@@ -142,6 +160,8 @@ type Logger interface {
 | `collection.DeleteMany(ctx, filter) (*DeleteResult, error)` | Delete multiple documents |
 | `collection.CountDocuments(ctx, filter) (int64, error)` | Count documents matching filter |
 
+&nbsp;
+
 🔝 [back to top](#api-reference)
 
 &nbsp;
@@ -149,7 +169,7 @@ type Logger interface {
 ### Enhanced Find Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `collection.FindWithOptions(ctx, filter, queryOpts) (*FindResult, error)` | Find documents with QueryOptions (sort, limit, skip, projection) |
 | `collection.FindOneWithOptions(ctx, filter, queryOpts) *FindOneResult` | Find single document with QueryOptions |
 | `collection.FindSorted(ctx, filter, sort, opts...) (*FindResult, error)` | Find documents with sort order |
@@ -158,6 +178,8 @@ type Logger interface {
 | `collection.FindWithSkip(ctx, filter, skip) (*FindResult, error)` | Find documents with skip offset |
 | `collection.FindWithProjection(ctx, filter, projection) (*FindResult, error)` | Find documents with field projection |
 
+&nbsp;
+
 🔝 [back to top](#api-reference)
 
 &nbsp;
@@ -165,11 +187,13 @@ type Logger interface {
 ### Advanced Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `collection.Aggregate(ctx, pipeline) (*Cursor, error)` | Run aggregation pipeline |
 | `collection.AggregateWithPipeline(ctx, pipelineBuilder, opts...) (*AggregateResult, error)` | Run aggregation using pipeline builder |
 | `collection.Distinct(ctx, field, filter) ([]any, error)` | Get distinct values for a field |
 | `collection.Watch(ctx, pipeline, opts...) (*ChangeStream, error)` | Watch for changes |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -178,12 +202,14 @@ type Logger interface {
 ### Atomic Upsert Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `collection.UpsertByField(ctx, field, value, document) (*UpdateResult, error)` | Atomic upsert using $setOnInsert for struct |
 | `collection.UpsertByFieldMap(ctx, field, value, fields) (*UpdateResult, error)` | Atomic upsert using $setOnInsert for map |
 | `collection.UpsertByFieldWithOptions(ctx, field, value, document, opts) (*UpdateResult, error)` | Atomic upsert with configuration options |
 
 **Note**: All upsert methods use `$setOnInsert` by default, ensuring existing documents are never modified and preventing race conditions.
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -196,7 +222,7 @@ type Logger interface {
 ### Filter Builder (package `filter`)
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `filter.New()` | Create a new filter builder |
 | `filter.Eq(field, value)` | Create an equality filter |
 | `filter.Ne(field, value)` | Create a not-equal filter |
@@ -207,6 +233,8 @@ type Logger interface {
 | `filter.In(field, values...)` | Create an in filter |
 | `filter.Nin(field, values...)` | Create a not-in filter |
 
+&nbsp;
+
 🔝 [back to top](#api-reference)
 
 &nbsp;
@@ -214,10 +242,12 @@ type Logger interface {
 #### Logical Operations (Fluent Methods)
 
 | Method | Description |
-|--------|-------------|
+| :--- | :--- |
 | `builder.And(filters...)` | Combine filters with logical AND (fluent method) |
 | `builder.Or(filters...)` | Combine filters with logical OR (fluent method) |
 | `builder.Not()` | Negate the current filter |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -226,10 +256,12 @@ type Logger interface {
 #### Array Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `filter.ElemMatch(field, filter)` | Create an elemMatch filter |
 | `filter.Size(field, size)` | Create a size filter |
 | `filter.All(field, values...)` | Create an all filter |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -238,9 +270,11 @@ type Logger interface {
 #### String Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `filter.Regex(field, pattern, options...)` | Create a regex filter |
 | `filter.Text(query)` | Create a text search filter |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -249,9 +283,11 @@ type Logger interface {
 #### Existence Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `filter.Exists(field, exists)` | Create an exists filter |
 | `filter.Type(field, bsonType)` | Create a type filter |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -260,7 +296,7 @@ type Logger interface {
 ### Update Builder (package `update`)
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `update.New()` | Create a new update builder |
 | `update.Set(field, value)` | Create a set operation |
 | `update.SetMap(fields)` | Create a set operation for multiple fields from map |
@@ -273,6 +309,8 @@ type Logger interface {
 | `update.SetOnInsertMap(fields)` | Create a setOnInsert operation for multiple fields from map |
 | `update.SetOnInsertStruct(document)` | Create a setOnInsert operation for all fields from struct |
 
+&nbsp;
+
 🔝 [back to top](#api-reference)
 
 &nbsp;
@@ -280,13 +318,15 @@ type Logger interface {
 #### Array Update Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `update.Push(field, value)` | Create a push operation |
 | `update.PushEach(field, values...)` | Create a push operation with multiple values |
 | `update.Pull(field, filter)` | Create a pull operation |
 | `update.AddToSet(field, value)` | Create an addToSet operation |
 | `update.PopFirst(field)` | Create a pop first operation |
 | `update.PopLast(field)` | Create a pop last operation |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -295,7 +335,7 @@ type Logger interface {
 ### Pipeline Builder (package `pipeline`)
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `pipeline.New()` | Create a new pipeline builder |
 | `builder.Match(filter)` | Add a $match stage with filter builder |
 | `builder.MatchRaw(filter)` | Add a $match stage with raw bson.M |
@@ -317,10 +357,16 @@ type Logger interface {
 | `builder.Build()` | Build pipeline as []bson.M |
 | `builder.ToBSONArray()` | Build pipeline as bson.A |
 
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
 #### Standalone Pipeline Functions
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `pipeline.Match(filter)` | Create pipeline starting with $match |
 | `pipeline.MatchRaw(filter)` | Create pipeline starting with raw $match |
 | `pipeline.Project(fields)` | Create pipeline starting with $project |
@@ -330,11 +376,19 @@ type Logger interface {
 | `pipeline.Skip(skip)` | Create pipeline starting with $skip |
 | `pipeline.Group(id, fields)` | Create pipeline starting with $group |
 
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
 #### Aggregation with Pipeline Builder
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `collection.AggregateWithPipeline(ctx, pipelineBuilder, opts...)` | Execute aggregation with pipeline builder |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -343,8 +397,10 @@ type Logger interface {
 ## Transaction Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `client.WithTransaction(ctx, fn)` | Execute a function within a transaction |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -357,12 +413,14 @@ type Logger interface {
 ### ULID Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `mongoid.NewULID()` | Generate a new ULID string |
 | `mongoid.ParseULID(str)` | Parse a ULID string |
 | `mongoid.FindByULID(ctx, coll, id)` | Find document by ULID |
 | `mongoid.UpdateByULID(ctx, coll, id, update)` | Update document by ULID |
 | `mongoid.DeleteByULID(ctx, coll, id)` | Delete document by ULID |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -371,11 +429,106 @@ type Logger interface {
 ### ObjectID Operations
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `mongoid.NewObjectID()` | Generate a new ObjectID |
 | `mongoid.FindByObjectID(ctx, coll, id)` | Find document by ObjectID |
 | `mongoid.UpdateByObjectID(ctx, coll, id, update)` | Update document by ObjectID |
 | `mongoid.DeleteByObjectID(ctx, coll, id)` | Delete document by ObjectID |
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+## Index Management
+
+The library provides a self-contained index management system with helper functions that eliminate the need to import mongo-driver directly for index operations.
+
+&nbsp;
+
+### Index Operations
+
+| Function | Description |
+| :--- | :--- |
+| `collection.CreateIndex(ctx, model)` | Create a single index using IndexModel |
+| `collection.CreateIndexes(ctx, models)` | Create multiple indexes using []IndexModel |
+| `collection.DropIndex(ctx, name)` | Drop an index by name |
+| `collection.ListIndexes(ctx)` | List all indexes in the collection |
+| `collection.Indexes()` | Get the IndexView for advanced index operations |
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+### Index Model Type
+
+```go
+type IndexModel struct {
+    Keys    bson.D                       // Index keys with sort direction
+    Options *options.IndexOptionsBuilder // Optional index options
+}
+```
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+### Basic Index Helpers
+
+| Function | Description |
+| :--- | :--- |
+| `IndexAsc(fields...)` | Create an ascending index on one or more fields |
+| `IndexDesc(fields...)` | Create a descending index on one or more fields |
+| `IndexUnique(fields...)` | Create a unique ascending index |
+| `IndexText(fields...)` | Create a text search index |
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+### Compound Index Helpers
+
+| Function | Description |
+| :--- | :--- |
+| `IndexCompound(field, dir, ...)` | Create a compound index with mixed directions (1=asc, -1=desc) |
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+### Special Index Types
+
+| Function | Description |
+| :--- | :--- |
+| `IndexTTL(field, duration)` | Create a TTL index for automatic document expiration |
+| `IndexSparse(fields...)` | Create a sparse index (only includes documents with the field) |
+| `IndexHashed(field)` | Create a hashed index for sharding or hash-based lookups |
+| `Index2DSphere(field)` | Create a geospatial 2dsphere index for GeoJSON data |
+| `IndexPartial(filter, fields...)` | Create a partial index with a filter expression |
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+### Index Modifiers
+
+| Function | Description |
+| :--- | :--- |
+| `IndexWithName(name, model)` | Add a custom name to any IndexModel |
+| `IndexUniqueWithOptions(fields, sparse, name)` | Create a unique index with additional options |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -388,11 +541,13 @@ type Logger interface {
 ### Error Types
 
 | Type | Description |
-|------|-------------|
+| :--- | :--- |
 | `DuplicateKeyError` | Duplicate key violation |
 | `ValidationError` | Document validation error |
 | `ConnectionError` | Connection-related error |
 | `WriteError` | Write operation error |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -401,11 +556,13 @@ type Logger interface {
 ### Error Checking Functions
 
 | Function | Description |
-|----------|-------------|
+| :--- | :--- |
 | `mongodb.IsDuplicateKeyError(err)` | Check if error is a duplicate key error |
 | `mongodb.IsValidationError(err)` | Check if error is a validation error |
 | `mongodb.IsConnectionError(err)` | Check if error is a connection error |
 | `mongodb.IsNotFoundError(err)` | Check if error is a not found error |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -418,9 +575,11 @@ type Logger interface {
 ### Insert Results
 
 | Type | Description |
-|------|-------------|
+| :--- | :--- |
 | `InsertOneResult` | Result of single document insert |
 | `InsertManyResult` | Result of multiple document insert |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -429,9 +588,11 @@ type Logger interface {
 ### Update Results
 
 | Type | Description |
-|------|-------------|
+| :--- | :--- |
 | `UpdateResult` | Result of update operations |
 | `ReplaceOneResult` | Result of replace operations |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -440,8 +601,10 @@ type Logger interface {
 ### Delete Results
 
 | Type | Description |
-|------|-------------|
+| :--- | :--- |
 | `DeleteResult` | Result of delete operations |
+
+&nbsp;
 
 🔝 [back to top](#api-reference)
 
@@ -450,23 +613,27 @@ type Logger interface {
 ### Find Results
 
 | Type | Description |
-|------|-------------|
+| :--- | :--- |
 | `FindOneResult` | Result of single document find |
 | `FindResult` | Result of enhanced find operations with convenient cursor methods |
 | `AggregateResult` | Result of aggregation operations with cursor functionality |
 | `Cursor` | Cursor for iterating over multiple documents |
 | `ChangeStream` | Stream for watching collection changes |
 
+&nbsp;
+
 🔝 [back to top](#api-reference)
+
+&nbsp;
 
 &nbsp;
 
 ---
 
-&nbsp;
-
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

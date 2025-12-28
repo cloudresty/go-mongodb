@@ -419,6 +419,103 @@ func IndexUnique(fields ...string) IndexModel {
 	}
 }
 
+// IndexCompound creates a compound index with mixed ascending/descending fields.
+// Takes pairs of (field, direction) where direction is 1 for ascending, -1 for descending.
+// Example: IndexCompound("status", 1, "created_at", -1)
+func IndexCompound(fieldsAndDirections ...any) IndexModel {
+	keys := bson.D{}
+	for i := 0; i < len(fieldsAndDirections)-1; i += 2 {
+		field, ok := fieldsAndDirections[i].(string)
+		if !ok {
+			continue
+		}
+		direction := 1
+		if dir, ok := fieldsAndDirections[i+1].(int); ok {
+			direction = dir
+		}
+		keys = append(keys, bson.E{Key: field, Value: direction})
+	}
+	return IndexModel{Keys: keys}
+}
+
+// IndexTTL creates a TTL (Time-To-Live) index that automatically expires documents.
+// The field should contain a date/time value. Documents expire after the specified duration.
+func IndexTTL(field string, expireAfter time.Duration) IndexModel {
+	keys := bson.D{{Key: field, Value: 1}}
+	expireSeconds := int32(expireAfter.Seconds())
+	return IndexModel{
+		Keys:    keys,
+		Options: options.Index().SetExpireAfterSeconds(expireSeconds),
+	}
+}
+
+// IndexSparse creates a sparse index that only includes documents with the indexed field.
+// Useful for optional fields where many documents might not have the field.
+func IndexSparse(fields ...string) IndexModel {
+	keys := bson.D{}
+	for _, field := range fields {
+		keys = append(keys, bson.E{Key: field, Value: 1})
+	}
+	return IndexModel{
+		Keys:    keys,
+		Options: options.Index().SetSparse(true),
+	}
+}
+
+// IndexHashed creates a hashed index for sharding or hash-based lookups.
+func IndexHashed(field string) IndexModel {
+	keys := bson.D{{Key: field, Value: "hashed"}}
+	return IndexModel{Keys: keys}
+}
+
+// Index2DSphere creates a 2dsphere index for geospatial queries on GeoJSON data.
+func Index2DSphere(field string) IndexModel {
+	keys := bson.D{{Key: field, Value: "2dsphere"}}
+	return IndexModel{Keys: keys}
+}
+
+// IndexWithName creates an index with a custom name.
+// Wraps any IndexModel and adds a custom name option.
+func IndexWithName(name string, model IndexModel) IndexModel {
+	if model.Options == nil {
+		model.Options = options.Index()
+	}
+	model.Options = model.Options.SetName(name)
+	return model
+}
+
+// IndexPartial creates a partial index with a filter expression.
+// Only documents matching the filter are included in the index.
+func IndexPartial(filter bson.D, fields ...string) IndexModel {
+	keys := bson.D{}
+	for _, field := range fields {
+		keys = append(keys, bson.E{Key: field, Value: 1})
+	}
+	return IndexModel{
+		Keys:    keys,
+		Options: options.Index().SetPartialFilterExpression(filter),
+	}
+}
+
+// IndexUniqueWithOptions creates a unique index with additional options
+func IndexUniqueWithOptions(fields []string, sparse bool, name string) IndexModel {
+	keys := bson.D{}
+	for _, field := range fields {
+		keys = append(keys, bson.E{Key: field, Value: 1})
+	}
+	opts := options.Index().SetUnique(true)
+	if sparse {
+		opts = opts.SetSparse(true)
+	}
+	if name != "" {
+		opts = opts.SetName(name)
+	}
+	return IndexModel{
+		Keys:    keys,
+		Options: opts,
+	}
+}
+
 // Error handling utilities
 
 // IsDuplicateKeyError checks if an error is a duplicate key error

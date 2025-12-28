@@ -39,6 +39,8 @@ if err != nil {
 defer client.Close()
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -54,6 +56,8 @@ export MONGODB_RECONNECT_BACKOFF=2.0
 export MONGODB_MAX_RECONNECT_ATTEMPTS=10
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -65,6 +69,8 @@ export MONGODB_MAX_RECONNECT_ATTEMPTS=10
 - **Attempt Limiting**: Configurable maximum reconnection attempts
 - **Connection State Tracking**: Monitor reconnection status and count
 - **Automatic Recovery**: Seamless operation resumption after reconnection
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -103,6 +109,8 @@ log.Printf("Cluster version: %s, Active connections: %d",
     stats.ServerVersion, stats.ActiveConnections)
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -124,6 +132,8 @@ defer client.Close()
 // Health checks run automatically in the background
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -136,6 +146,8 @@ export MONGODB_HEALTH_CHECK_ENABLED=true
 export MONGODB_HEALTH_CHECK_INTERVAL=30s
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -147,6 +159,8 @@ export MONGODB_HEALTH_CHECK_INTERVAL=30s
 - **Error Detection**: Early detection of connection issues
 - **Status Reporting**: Detailed health status with error information
 - **Reconnection Triggering**: Automatic reconnection on health failures
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -195,9 +209,11 @@ err := client.WithTransaction(ctx, func(ctx context.Context) error {
 if err != nil {
     log.Printf("Transaction failed: %v", err)
 } else {
-    log.Println("✅ Transaction completed successfully")
+    log.Println("Transaction completed successfully")
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -229,6 +245,8 @@ if err := session.CommitTransaction(ctx); err != nil {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -241,6 +259,8 @@ if err := session.CommitTransaction(ctx); err != nil {
 - **Configurable Isolation**: Read/write concern configuration
 - **Automatic Retry**: Built-in retry logic for transient failures
 - **Timeout Protection**: Configurable transaction timeouts
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -262,6 +282,8 @@ export MONGODB_SERVER_SELECT_TIMEOUT=10s
 export MONGODB_SOCKET_TIMEOUT=10s
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -282,6 +304,8 @@ if err != nil {
 defer client.Close()
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -289,10 +313,12 @@ defer client.Close()
 ### Timeout Types
 
 | Timeout | Description | Default | Recommended |
-|---------|-------------|---------|-------------|
+| :--- | :--- | :--- | :--- |
 | **Connect** | Initial connection establishment | 10s | 30s for production |
 | **Server Selection** | Finding available server | 5s | 10s for replica sets |
 | **Socket** | Individual operation timeout | 10s | Based on operation complexity |
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -320,6 +346,8 @@ if err != nil {
 defer client.Close()
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -344,6 +372,8 @@ export MONGODB_MAX_IDLE_TIME=2m
 export MONGODB_MAX_CONN_IDLE_TIME=5m
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -355,6 +385,8 @@ export MONGODB_MAX_CONN_IDLE_TIME=5m
 - **Monitor timeout errors** to identify infrastructure issues
 - **Use different timeouts per environment** (dev vs. staging vs. production)
 - **Account for replica set failover time** in server selection timeout
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -385,6 +417,8 @@ shutdownManager.Register(client)
 shutdownManager.Wait()
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -414,6 +448,8 @@ go healthChecker(shutdownManager.Context())
 shutdownManager.Wait()
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -425,6 +461,8 @@ shutdownManager.Wait()
 - **Timeout Protection**: Prevents indefinite waiting during shutdown
 - **Component Coordination**: Unified shutdown across multiple clients
 - **Zero Data Loss**: Ensures operation completion before exit
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -453,6 +491,8 @@ if err != nil {
 defer client.Close()
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -476,6 +516,8 @@ defer client.Close()
 // export MONGODB_COMPRESSION_ENABLED=true
 // export MONGODB_COMPRESSION_ALGORITHM=zstd
 ```
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -503,6 +545,8 @@ defer client.Close()
 // export MONGODB_READ_CONCERN=local
 ```
 
+&nbsp;
+
 🔝 [back to top](#production-features)
 
 &nbsp;
@@ -510,13 +554,15 @@ defer client.Close()
 ### Performance Benchmarks
 
 | Operation | Throughput | Latency (P99) | Notes |
-|-----------|------------|---------------|-------|
+| :--- | :--- | :--- | :--- |
 | **Insert** | 50K ops/sec | <5ms | With ULID IDs |
 | **Find** | 100K ops/sec | <2ms | Simple queries with indexes |
 | **Update** | 40K ops/sec | <8ms | Single document updates |
 | **Aggregate** | 10K ops/sec | <50ms | Complex pipelines |
 
 Note: Benchmarks performed on MongoDB 7.0, 16 CPU cores, 32GB RAM
+
+&nbsp;
 
 🔝 [back to top](#production-features)
 
@@ -540,6 +586,8 @@ Essential items for production deployment:
 - **Pipeline builder** - fluent aggregation pipeline construction
 - **Advanced query capabilities** - comprehensive sorting and pagination support
 
+&nbsp;
+
 **Additional Recommended Items:**
 
 - [ ] Set up monitoring and metrics
@@ -551,16 +599,20 @@ Essential items for production deployment:
 - [ ] Performance testing under load
 - [ ] Security audit and hardening
 
+&nbsp;
+
 🔝 [back to top](#production-features)
+
+&nbsp;
 
 &nbsp;
 
 ---
 
-&nbsp;
-
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

@@ -11,12 +11,14 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Core Connection Variables
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_HOSTS` | MongoDB host addresses (comma-separated) | `localhost:27017` | `mongo1:27017,mongo2:27017` |
 | `MONGODB_USERNAME` | Authentication username | _(none)_ | `myuser` |
 | `MONGODB_PASSWORD` | Authentication password | _(none)_ | `mypassword` |
 | `MONGODB_DATABASE` | Default database name | `app` | `production` |
 | `MONGODB_AUTH_DATABASE` | Authentication database | `admin` | `admin` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -25,9 +27,11 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Application Settings
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_APP_NAME` | Application identifier for logging | `go-mongodb-app` | `my-service` |
 | `MONGODB_ID_MODE` | ID generation strategy | `ulid` | `ulid`, `objectid`, `custom` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -36,10 +40,12 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Connection Pool Settings
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_MAX_POOL_SIZE` | Maximum connections in pool | `100` | `50` |
 | `MONGODB_MIN_POOL_SIZE` | Minimum connections in pool | `5` | `10` |
 | `MONGODB_MAX_IDLE_TIME` | Connection idle timeout | `30m` | `15m` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -48,10 +54,12 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Timeout Settings
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_TIMEOUT` | Default operation timeout | `30s` | `60s` |
 | `MONGODB_CONNECT_TIMEOUT` | Connection establishment timeout | `10s` | `5s` |
 | `MONGODB_SERVER_SELECTION_TIMEOUT` | Server selection timeout | `30s` | `15s` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -60,11 +68,13 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Replica Set Configuration
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_REPLICA_SET` | Replica set name | _(none)_ | `rs0` |
 | `MONGODB_READ_PREFERENCE` | Read preference | `primary` | `secondaryPreferred` |
 | `MONGODB_WRITE_CONCERN` | Write concern | `majority` | `1` |
 | `MONGODB_DIRECT_CONNECTION` | Force direct connection (bypass topology discovery) | `false` | `true` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -73,11 +83,13 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Security Settings
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_TLS` | Enable TLS/SSL | `false` | `true` |
 | `MONGODB_TLS_CERT_FILE` | TLS certificate file path | _(none)_ | `/certs/client.pem` |
 | `MONGODB_TLS_KEY_FILE` | TLS key file path | _(none)_ | `/certs/client-key.pem` |
 | `MONGODB_TLS_CA_FILE` | TLS CA certificate file path | _(none)_ | `/certs/ca.pem` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -86,9 +98,11 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Health Check Settings
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_HEALTH_CHECK_ENABLED` | Enable automatic health checks | `true` | `false` |
 | `MONGODB_HEALTH_CHECK_INTERVAL` | Health check interval | `30s` | `60s` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -97,12 +111,14 @@ The go-mongodb package supports comprehensive configuration through environment 
 ## Reconnection Settings
 
 | Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
+| :--- | :--- | :--- | :--- |
 | `MONGODB_RECONNECT_ENABLED` | Enable automatic reconnection | `true` | `false` |
 | `MONGODB_RECONNECT_DELAY` | Initial reconnect delay | `5s` | `10s` |
 | `MONGODB_MAX_RECONNECT_DELAY` | Maximum reconnect delay | `1m` | `5m` |
 | `MONGODB_RECONNECT_BACKOFF` | Backoff multiplier | `2.0` | `1.5` |
 | `MONGODB_MAX_RECONNECT_ATTEMPTS` | Maximum reconnection attempts | `10` | `5` |
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -122,6 +138,8 @@ MONGODB_APP_NAME=myapp-dev
 MONGODB_ID_MODE=ulid
 MONGODB_TIMEOUT=30s
 ```
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -145,6 +163,8 @@ MONGODB_TIMEOUT=60s
 MONGODB_HEALTH_CHECK_INTERVAL=30s
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-variables)
 
 &nbsp;
@@ -163,6 +183,8 @@ MONGODB_APP_NAME=myapp-cloud
 MONGODB_DIRECT_CONNECTION=true
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-variables)
 
 &nbsp;
@@ -177,6 +199,8 @@ MONGODB_APP_NAME=dockerized-app
 MONGODB_MAX_POOL_SIZE=50
 MONGODB_TIMEOUT=30s
 ```
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -198,6 +222,8 @@ data:
   MONGODB_TIMEOUT: "60s"
   MONGODB_READ_PREFERENCE: "secondaryPreferred"
 ```
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -222,6 +248,8 @@ This will look for variables like:
 - `MYAPP_MONGODB_DIRECT_CONNECTION`
 - etc.
 
+&nbsp;
+
 🔝 [back to top](#environment-variables)
 
 &nbsp;
@@ -241,6 +269,8 @@ client, err := mongodb.NewClient(
     mongodb.WithDatabase("test_override"), // Overrides to use "test_override"
 )
 ```
+
+&nbsp;
 
 🔝 [back to top](#environment-variables)
 
@@ -264,6 +294,8 @@ MONGODB_ID_MODE=invalid
 # Error: invalid ID mode "invalid", must be one of: ulid, objectid, custom
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-variables)
 
 &nbsp;
@@ -279,6 +311,8 @@ MONGODB_ID_MODE=invalid
 - **Rotate passwords regularly** and update environment variables accordingly
 - **Enable TLS** in production environments
 
+&nbsp;
+
 🔝 [back to top](#environment-variables)
 
 &nbsp;
@@ -290,6 +324,8 @@ MONGODB_ID_MODE=invalid
 - **Use read preferences** to distribute load in replica set deployments
 - **Enable health checks** for automatic problem detection
 
+&nbsp;
+
 🔝 [back to top](#environment-variables)
 
 &nbsp;
@@ -300,16 +336,20 @@ MONGODB_ID_MODE=invalid
 - **Enable health checks** for monitoring integration
 - **Use structured logging** with the app name for better observability
 
+&nbsp;
+
 🔝 [back to top](#environment-variables)
+
+&nbsp;
 
 &nbsp;
 
 ---
 
-&nbsp;
-
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

@@ -14,6 +14,8 @@ This guide will help you get up and running with the go-mongodb package quickly 
 - MongoDB 8+ running locally or remotely
 - Basic understanding of Go and MongoDB concepts
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -24,6 +26,8 @@ This guide will help you get up and running with the go-mongodb package quickly 
 go mod init your-project
 go get github.com/cloudresty/go-mongodb
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -42,6 +46,8 @@ MONGODB_HOSTS=localhost:27017
 MONGODB_DATABASE=myapp
 MONGODB_APP_NAME=my-app
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -76,6 +82,8 @@ func main() {
     log.Println("✓ Connected to MongoDB successfully!")
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -120,6 +128,8 @@ if err != nil {
 log.Printf("Document inserted with ID: %s", result.InsertedID)
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -157,6 +167,8 @@ for _, user := range foundUsers {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -193,6 +205,8 @@ MONGODB_READ_PREFERENCE=secondaryPreferred
 MONGODB_WRITE_CONCERN=majority
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -217,6 +231,8 @@ config := &mongodb.Config{
 
 client, err := mongodb.NewClient(mongodb.WithConfig(config))
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -244,9 +260,11 @@ complexFilter := filter.Eq("status", "active").
 termFilter := filter.Eq("category", "electronics")
 rangeFilter := filter.Gte("price", 10).
     And(filter.Lte("price", 100))
-)
+
 arrayFilter := filter.In("tags", "golang", "mongodb", "database")
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -281,6 +299,8 @@ if err != nil {
 log.Printf("Modified %d documents", result.ModifiedCount)
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -307,6 +327,8 @@ result, _ := users.InsertOne(ctx, user)
 // result.InsertedID will be the ULID string
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -328,6 +350,8 @@ user := User{
 result, _ := users.InsertOne(ctx, user)
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -346,6 +370,8 @@ user := User{
 }
 result, _ := users.InsertOne(ctx, user)
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -371,6 +397,8 @@ log.Printf("Active connections: %d", stats.ActiveConnections)
 log.Printf("Operations executed: %d", stats.OperationsExecuted)
 log.Printf("Reconnect attempts: %d", stats.ReconnectAttempts)
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -403,6 +431,8 @@ if err != nil {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -429,6 +459,8 @@ go func() {
     os.Exit(0)
 }()
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -457,6 +489,8 @@ if err != nil {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -480,6 +514,8 @@ if err != nil {
 
 log.Printf("Inserted %d documents", len(result.InsertedIDs))
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -513,6 +549,8 @@ var results []CategoryStats
 err = cursor.All(ctx, &results)
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -544,6 +582,8 @@ updateResult, err := users.UpdateOne(ctx,
 deleteResult, err := users.DeleteOne(ctx, filter.Eq("_id", result.InsertedID))
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -567,6 +607,8 @@ if err == nil {
 // err = db.Drop(ctx)
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -578,6 +620,8 @@ if err == nil {
 3. Review [Production Features](production-features.md) - Production deployment guidance
 4. Configure [Environment Variables](environment-variables.md) - All supported variables
 5. Learn [Environment Configuration](environment-configuration.md) - Setup patterns and examples
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -600,6 +644,8 @@ mongod --dbpath /usr/local/var/mongodb
 docker run -d -p 27017:27017 mongo:latest
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -615,6 +661,8 @@ export MONGODB_PASSWORD=mypassword
 export MONGODB_HOSTS=mongodb+srv://user:pass@cluster.mongodb.net
 ```
 
+&nbsp;
+
 🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
@@ -627,6 +675,8 @@ user := User{Name: "John", Email: "john@example.com"}
 _, err := users.InsertOne(ctx, user)
 // Collection "users" is created automatically
 ```
+
+&nbsp;
 
 🔝 [back to top](#getting-started-with-go-mongodb)
 
@@ -641,12 +691,18 @@ _, err := users.InsertOne(ctx, user)
 
 &nbsp;
 
----
+🔝 [back to top](#getting-started-with-go-mongodb)
 
 &nbsp;
 
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+&nbsp;
+
+---
+
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

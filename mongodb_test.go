@@ -141,10 +141,8 @@ func TestIndexOperations(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create a simple index
-	indexModel := mongo.IndexModel{
-		Keys: bson.D{bson.E{Key: "email", Value: 1}},
-	}
+	// Create a simple index using the library's IndexModel (no mongo import needed)
+	indexModel := IndexAsc("email")
 	_, err = collection.CreateIndex(ctx, indexModel)
 	if err != nil {
 		t.Fatalf("Failed to create index: %v", err)

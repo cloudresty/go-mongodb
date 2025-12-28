@@ -22,6 +22,8 @@ ULID (Universally Unique Lexicographically Sortable Identifier) IDs provide sign
 - **Collision Resistant**: 128-bit entropy ensures uniqueness
 - **MongoDB Compatible**: Works seamlessly with MongoDB collections using ULID strings as _id
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -66,6 +68,8 @@ fmt.Printf("Inserted ID: %s\n", result.InsertedID)
 fmt.Printf("Generated at: %s\n", result.GeneratedAt)
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -97,6 +101,8 @@ user := User{
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -108,7 +114,7 @@ user := User{
 ### ULID Components
 
 ```text
-01ARZ3NDEKTSV4RRFFQ69G5FAV
+01arz3ndektsv4rrrrq69g5fav
 |          |
 |          '-- Randomness (80 bits)
 '-- Timestamp (48 bits)
@@ -117,6 +123,8 @@ user := User{
 - **Timestamp**: 48-bit millisecond Unix timestamp
 - **Randomness**: 80-bit cryptographically random data
 - **Total**: 128-bit identifier (26 characters when encoded)
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -133,6 +141,8 @@ ulid2 := generateULID() // 01HGQJ5Z8L1A3B5C7D9E2F4G6H
 // ulid1 < ulid2 (lexicographically)
 // This enables efficient database queries and indexing
 ```
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -170,6 +180,8 @@ if err != nil {
 fmt.Printf("Found user: %s (%s)\n", user.Name, user.Email)
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -194,6 +206,8 @@ cursor, err := collection.Find(ctx,
     filter.Gte("_id", startULID).And(filter.Lte("_id", endULID)),
 )
 ```
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -224,6 +238,8 @@ cursor, err = collection.Find(ctx,
 )
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -235,10 +251,12 @@ cursor, err = collection.Find(ctx,
 ### Generation Speed
 
 | Identifier Type | Operations/sec | Relative Performance |
-|----------------|----------------|---------------------|
+| :--- | :--- | :--- |
 | **ULID** | ~6,000,000 | 6.0x faster |
 | **UUID v4** | ~1,000,000 | 1.0x baseline |
 | **MongoDB ObjectID** | ~8,000,000 | 8.0x faster |
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -257,6 +275,8 @@ cursor, err = collection.Find(ctx,
 // UUID v4: Random distribution causes index fragmentation
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -267,6 +287,8 @@ cursor, err = collection.Find(ctx,
 - **ULID Binary**: 16 bytes (128-bit)
 - **UUID String**: 36 bytes (with hyphens)
 - **MongoDB ObjectID**: 12 bytes (but less entropy)
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -287,6 +309,8 @@ fmt.Printf("Generated ULID: %s\n", ulid)
 timestamp := time.Now().Add(-1 * time.Hour)
 pastULID := mongodb.GenerateULIDFromTime(timestamp)
 ```
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -315,6 +339,8 @@ if err != nil {
     log.Fatal(err)
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -345,6 +371,8 @@ for i, ulidId := range result.InsertedIDs {
     fmt.Printf("Document %d ULID: %s\n", i+1, ulidId)
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -404,6 +432,8 @@ for cursor.Next(ctx) {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -425,6 +455,8 @@ type DocumentMapping struct {
 collection.CreateIndex(ctx, bson.D{{"uuid", 1}})
 collection.CreateIndex(ctx, bson.D{{"ulid", 1}})
 ```
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -453,6 +485,8 @@ collection.CreateIndex(ctx, bson.D{
 // Avoid indexes on random UUIDs (causes fragmentation)
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -474,6 +508,8 @@ timeRangeFilter := filter.Gte("_id", startULID).And(filter.Lt("_id", endULID))
 cursor, err := collection.Find(ctx, timeRangeFilter)
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -485,6 +521,8 @@ cursor, err := collection.Find(ctx, timeRangeFilter)
 - **Use ULID _id fields** for efficient queries (no additional indexes needed)
 - **Use ULID prefixes** for sharding strategies
 - **Consider ULID in URL design** for user-friendly, sortable URLs
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -509,6 +547,8 @@ if time.Since(lastGeneratedTime) < 0 {
     log.Warn("Clock skew detected - ULID ordering may be affected")
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#id-generation)
 
@@ -535,6 +575,8 @@ if mongodb.IsDuplicateKeyError(err) {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
 
 &nbsp;
@@ -554,16 +596,20 @@ if duration > time.Microsecond {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#id-generation)
+
+&nbsp;
 
 &nbsp;
 
 ---
 
-&nbsp;
-
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

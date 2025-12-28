@@ -19,6 +19,8 @@ The package includes several examples in the `examples/` directory:
 - **`ulid-demo/`** - ULID-based IDs with MongoDB
 - **`reconnection-test/`** - Auto-reconnection behavior demonstration
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -56,6 +58,8 @@ func main() {
     emit.Info.Msg("MongoDB client connected successfully")
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -145,7 +149,11 @@ func main() {
 }
 ```
 
+&nbsp;
+
 **Note**: This approach allows you to integrate any logging library by implementing the `Logger` interface. The client operations will use your logger for internal logging while remaining completely decoupled from any specific logging framework.
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -235,6 +243,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -284,6 +294,8 @@ complexFilter := filter.New().
 count, err := collection.CountDocuments(ctx, complexFilter)
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -314,6 +326,8 @@ if err != nil {
 log.Printf("Modified %d documents", result.ModifiedCount)
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -331,6 +345,8 @@ updateOp := update.New().
 // Execute the update
 result, err := collection.UpdateMany(ctx, filter.Eq("status", "pending"), updateOp)
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -355,6 +371,8 @@ go run examples/crud/main.go
 # Run transaction example
 go run examples/transactions/main.go
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -393,6 +411,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -416,6 +436,8 @@ export MONGODB_MAX_IDLE_TIME=5m
 export MONGODB_SERVER_SELECT_TIMEOUT=30s
 export MONGODB_SOCKET_TIMEOUT=5m
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -459,6 +481,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -475,7 +499,7 @@ package main
 import (
     "context"
     "time"
-    
+
     "github.com/cloudresty/go-mongodb"
     "github.com/cloudresty/go-mongodb/filter"
     "github.com/cloudresty/go-mongodb/update"
@@ -543,6 +567,8 @@ func atomicUpsertExample() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -598,6 +624,8 @@ func convenienceUpsertExample() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -629,12 +657,12 @@ func raceConditionExample() {
 
     // First upsert - will create the document
     result1, err := collection.UpsertByField(ctx, "url", event.URL, event)
-    log.Printf("First upsert: UpsertedCount=%d, MatchedCount=%d", 
+    log.Printf("First upsert: UpsertedCount=%d, MatchedCount=%d",
                result1.UpsertedCount, result1.MatchedCount)
 
     // Second upsert with same URL - will match but not modify
     result2, err := collection.UpsertByField(ctx, "url", event.URL, event)
-    log.Printf("Second upsert: UpsertedCount=%d, MatchedCount=%d", 
+    log.Printf("Second upsert: UpsertedCount=%d, MatchedCount=%d",
                result2.UpsertedCount, result2.MatchedCount)
 
     // The document is only created once, never modified
@@ -642,6 +670,8 @@ func raceConditionExample() {
     // This prevents duplicate entries and data corruption
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -743,6 +773,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -830,6 +862,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -877,6 +911,8 @@ func main() {
     defer client.Close()
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -944,6 +980,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -970,6 +1008,8 @@ go run examples/crud/main.go
 go run examples/transactions/main.go
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -987,6 +1027,8 @@ make lint
 # Full CI pipeline
 make ci
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -1045,6 +1087,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -1100,6 +1144,8 @@ func main() {
     // Output: Inserted document with ObjectID: 507f1f77bcf86cd799439011
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -1158,6 +1204,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -1177,6 +1225,8 @@ export MONGODB_ID_MODE=ulid
 export MONGODB_HOSTS=localhost:27017
 export MONGODB_DATABASE=development
 ```
+
+&nbsp;
 
 ```go
 package main
@@ -1227,6 +1277,8 @@ func main() {
     fmt.Printf("Inserted document (%s mode): %s\n", idMode, result.InsertedID)
 }
 ```
+
+&nbsp;
 
 🔝 [back to top](#examples)
 
@@ -1301,6 +1353,301 @@ func main() {
 }
 ```
 
+&nbsp;
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+## Index Management
+
+The library provides a self-contained index management system with helper functions that eliminate the need to import mongo-driver directly for index operations.
+
+&nbsp;
+
+### Basic Index Creation
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/cloudresty/go-mongodb"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("users")
+    ctx := context.Background()
+
+    // Simple ascending index on email field
+    _, err = collection.CreateIndex(ctx, mongodb.IndexAsc("email"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Descending index for sorting by created_at
+    _, err = collection.CreateIndex(ctx, mongodb.IndexDesc("created_at"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Unique index to prevent duplicate emails
+    _, err = collection.CreateIndex(ctx, mongodb.IndexUnique("email"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Text search index for full-text queries
+    _, err = collection.CreateIndex(ctx, mongodb.IndexText("title", "description"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Basic indexes created successfully")
+}
+```
+
+&nbsp;
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+### Compound Indexes
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/cloudresty/go-mongodb"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("orders")
+    ctx := context.Background()
+
+    // Compound index: status ascending, created_at descending
+    _, err = collection.CreateIndex(ctx, mongodb.IndexCompound("status", 1, "created_at", -1))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Multi-field compound index for query optimization
+    _, err = collection.CreateIndex(ctx, mongodb.IndexCompound(
+        "tenant_id", 1,
+        "status", 1,
+        "priority", -1,
+    ))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Compound indexes created successfully")
+}
+```
+
+&nbsp;
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+### Special Index Types
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+
+    "github.com/cloudresty/go-mongodb"
+    "go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    ctx := context.Background()
+
+    // TTL index: automatically delete documents 24 hours after expires_at
+    sessions := client.Collection("sessions")
+    _, err = sessions.CreateIndex(ctx, mongodb.IndexTTL("expires_at", 24*time.Hour))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Sparse index: only index documents that have the optional_field
+    users := client.Collection("users")
+    _, err = users.CreateIndex(ctx, mongodb.IndexSparse("optional_field"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Hashed index for sharding
+    events := client.Collection("events")
+    _, err = events.CreateIndex(ctx, mongodb.IndexHashed("shard_key"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // 2dsphere index for geospatial queries
+    locations := client.Collection("locations")
+    _, err = locations.CreateIndex(ctx, mongodb.Index2DSphere("location"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Partial index: only index active users
+    _, err = users.CreateIndex(ctx, mongodb.IndexPartial(
+        bson.D{{Key: "status", Value: "active"}},
+        "email",
+    ))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Special indexes created successfully")
+}
+```
+
+&nbsp;
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+### Index Modifiers and Custom Names
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+
+    "github.com/cloudresty/go-mongodb"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("users")
+    ctx := context.Background()
+
+    // Add custom name to an index
+    _, err = collection.CreateIndex(ctx, mongodb.IndexWithName(
+        "idx_user_email",
+        mongodb.IndexAsc("email"),
+    ))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Unique index with sparse option and custom name
+    _, err = collection.CreateIndex(ctx, mongodb.IndexUniqueWithOptions(
+        []string{"optional_email"},
+        true,  // sparse
+        "idx_optional_email_unique",
+    ))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Chain modifiers with any index type
+    sessions := client.Collection("sessions")
+    _, err = sessions.CreateIndex(ctx, mongodb.IndexWithName(
+        "idx_session_expiry",
+        mongodb.IndexTTL("created_at", 30*time.Minute),
+    ))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Println("Named indexes created successfully")
+}
+```
+
+&nbsp;
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
+### Creating Multiple Indexes
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+
+    "github.com/cloudresty/go-mongodb"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("users")
+    ctx := context.Background()
+
+    // Create multiple indexes at once
+    indexes := []mongodb.IndexModel{
+        mongodb.IndexUnique("email"),
+        mongodb.IndexAsc("created_at"),
+        mongodb.IndexCompound("status", 1, "priority", -1),
+        mongodb.IndexTTL("session_expires", time.Hour),
+    }
+
+    names, err := collection.CreateIndexes(ctx, indexes)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Created indexes: %v\n", names)
+}
+```
+
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
@@ -1313,22 +1660,28 @@ func main() {
 - **Test with realistic data volumes** - Performance validation
 - **Test reconnection scenarios** - Network resilience validation
 
+&nbsp;
+
 🔝 [back to top](#examples)
 
 &nbsp;
 
 For more detailed examples, see the [`examples/`](../examples/) directory in the repository.
 
+&nbsp;
+
 🔝 [back to top](#examples)
+
+&nbsp;
 
 &nbsp;
 
 ---
 
-&nbsp;
-
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

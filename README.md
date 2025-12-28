@@ -43,6 +43,8 @@ A modern, production-ready Go package for MongoDB operations with environment-fi
 - **High Performance**: Optimized for throughput with efficient ULID generation
 - **Fully Tested**: Comprehensive test coverage with CI/CD pipeline
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -56,6 +58,8 @@ A modern, production-ready Go package for MongoDB operations with environment-fi
 ```bash
 go get github.com/cloudresty/go-mongodb
 ```
+
+&nbsp;
 
 🔝 [back to top](#go-mongodb)
 
@@ -118,6 +122,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -132,6 +138,8 @@ export MONGODB_DATABASE=myapp
 export MONGODB_CONNECTION_NAME=my-service
 ```
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -139,12 +147,16 @@ export MONGODB_CONNECTION_NAME=my-service
 ## Documentation
 
 | Document | Description |
-|----------|-------------|
+| :--- | :--- |
+| [Getting Started](docs/getting-started.md) | Quick start guide and installation instructions |
 | [API Reference](docs/api-reference.md) | Complete function reference and usage patterns |
+| [Environment Variables](docs/environment-variables.md) | Supported variables and their purpose |
 | [Environment Configuration](docs/environment-configuration.md) | Environment variables and deployment configurations |
 | [Production Features](docs/production-features.md) | Auto-reconnection, graceful shutdown, health checks, transactions |
 | [ID Generation](docs/id-generation.md) | High-performance, database-optimized document identifiers |
 | [Examples](docs/examples.md) | Comprehensive examples and usage patterns |
+
+&nbsp;
 
 🔝 [back to top](#go-mongodb)
 
@@ -154,6 +166,8 @@ export MONGODB_CONNECTION_NAME=my-service
 
 This package is designed for modern cloud-native applications that require robust, high-performance MongoDB operations. It leverages the power of MongoDB while providing a developer-friendly API that integrates seamlessly with environment-based configurations.
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -161,6 +175,8 @@ This package is designed for modern cloud-native applications that require robus
 ### Environment-First Design
 
 Perfect for modern cloud deployments with Docker, Kubernetes, and CI/CD pipelines. No more hardcoded connection strings.
+
+&nbsp;
 
 🔝 [back to top](#go-mongodb)
 
@@ -170,6 +186,8 @@ Perfect for modern cloud deployments with Docker, Kubernetes, and CI/CD pipeline
 
 Get 6x faster document ID generation with better database performance compared to UUIDs. Natural time-ordering and collision resistance.
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -178,6 +196,8 @@ Get 6x faster document ID generation with better database performance compared t
 
 Built-in support for high availability, graceful shutdown, automatic reconnection, and comprehensive timeout controls.
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -185,6 +205,8 @@ Built-in support for high availability, graceful shutdown, automatic reconnectio
 ### Performance Optimized
 
 Pluggable logging framework, efficient ULID generation, and optimized for high-throughput scenarios.
+
+&nbsp;
 
 🔝 [back to top](#go-mongodb)
 
@@ -236,6 +258,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -244,6 +268,8 @@ func main() {
 
 - Go 1.24+ (recommended)
 - MongoDB 8.0+ (recommended)
+
+&nbsp;
 
 🔝 [back to top](#go-mongodb)
 
@@ -259,6 +285,8 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 4. Ensure all tests pass
 5. Submit a pull request
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
 
 &nbsp;
@@ -266,6 +294,8 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 ## Security
 
 If you discover a security vulnerability, please report it via email to [security@cloudresty.com](mailto:security@cloudresty.com).
+
+&nbsp;
 
 🔝 [back to top](#go-mongodb)
 
@@ -275,16 +305,20 @@ If you discover a security vulnerability, please report it via email to [securit
 
 This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.txt) file for details.
 
+&nbsp;
+
 🔝 [back to top](#go-mongodb)
+
+&nbsp;
 
 &nbsp;
 
 ---
 
-&nbsp;
-
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

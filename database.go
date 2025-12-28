@@ -182,26 +182,13 @@ func (c *Client) GetStats(ctx context.Context) (bson.M, error) {
 // CreateIndex creates an index on the specified collection
 func (c *Client) CreateIndex(ctx context.Context, collectionName string, index IndexModel) (string, error) {
 	collection := c.Collection(collectionName)
-	// Convert our IndexModel to mongo.IndexModel
-	mongoIndex := mongo.IndexModel{
-		Keys:    index.Keys,
-		Options: index.Options,
-	}
-	return collection.CreateIndex(ctx, mongoIndex)
+	return collection.CreateIndex(ctx, index)
 }
 
 // CreateIndexes creates multiple indexes on the specified collection
 func (c *Client) CreateIndexes(ctx context.Context, collectionName string, indexes []IndexModel) ([]string, error) {
 	collection := c.Collection(collectionName)
-	// Convert our IndexModels to mongo.IndexModels
-	var mongoIndexes []mongo.IndexModel
-	for _, idx := range indexes {
-		mongoIndexes = append(mongoIndexes, mongo.IndexModel{
-			Keys:    idx.Keys,
-			Options: idx.Options,
-		})
-	}
-	return collection.CreateIndexes(ctx, mongoIndexes)
+	return collection.CreateIndexes(ctx, indexes)
 }
 
 // DropIndex drops an index from the specified collection

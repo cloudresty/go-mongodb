@@ -754,15 +754,23 @@ func (col *Collection) Indexes() mongo.IndexView {
 	return col.collection.Indexes()
 }
 
-// CreateIndex creates a single index
-func (col *Collection) CreateIndex(ctx context.Context, model mongo.IndexModel, opts ...options.Lister[options.CreateIndexesOptions]) (string, error) {
+// CreateIndex creates a single index using the library's IndexModel type.
+// This eliminates the need to import mongo-driver directly for index operations.
+// Use helper functions like IndexAsc(), IndexDesc(), IndexUnique(), IndexText() to create IndexModel.
+func (col *Collection) CreateIndex(ctx context.Context, model IndexModel, opts ...options.Lister[options.CreateIndexesOptions]) (string, error) {
 	if ctx == nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 	}
 
-	name, err := col.collection.Indexes().CreateOne(ctx, model, opts...)
+	// Convert library's IndexModel to mongo.IndexModel
+	mongoModel := mongo.IndexModel{
+		Keys:    model.Keys,
+		Options: model.Options,
+	}
+
+	name, err := col.collection.Indexes().CreateOne(ctx, mongoModel, opts...)
 	if err != nil {
 		col.client.config.Logger.Error("Failed to create index",
 			"error", err.Error(),
@@ -777,15 +785,26 @@ func (col *Collection) CreateIndex(ctx context.Context, model mongo.IndexModel, 
 	return name, nil
 }
 
-// CreateIndexes creates multiple indexes
-func (col *Collection) CreateIndexes(ctx context.Context, models []mongo.IndexModel, opts ...options.Lister[options.CreateIndexesOptions]) ([]string, error) {
+// CreateIndexes creates multiple indexes using the library's IndexModel type.
+// This eliminates the need to import mongo-driver directly for index operations.
+// Use helper functions like IndexAsc(), IndexDesc(), IndexUnique(), IndexText() to create IndexModel.
+func (col *Collection) CreateIndexes(ctx context.Context, models []IndexModel, opts ...options.Lister[options.CreateIndexesOptions]) ([]string, error) {
 	if ctx == nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 	}
 
-	names, err := col.collection.Indexes().CreateMany(ctx, models, opts...)
+	// Convert library's IndexModels to mongo.IndexModels
+	mongoModels := make([]mongo.IndexModel, len(models))
+	for i, model := range models {
+		mongoModels[i] = mongo.IndexModel{
+			Keys:    model.Keys,
+			Options: model.Options,
+		}
+	}
+
+	names, err := col.collection.Indexes().CreateMany(ctx, mongoModels, opts...)
 	if err != nil {
 		col.client.config.Logger.Error("Failed to create indexes",
 			"error", err.Error(),

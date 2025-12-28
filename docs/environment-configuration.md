@@ -34,6 +34,8 @@ defer client.Close()
 log.Printf("[%s] Processing payment...", client.Name())
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -64,6 +66,8 @@ defer client.Close()
 log.Printf("[%s] Service started successfully", client.Name())
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -75,7 +79,7 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Connection Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_HOSTS` | `localhost:27017` | MongoDB hosts (comma-separated for clusters) |
 | `MONGODB_USERNAME` | `""` | MongoDB username |
 | `MONGODB_PASSWORD` | `""` | MongoDB password |
@@ -86,6 +90,8 @@ log.Printf("[%s] Service started successfully", client.Name())
 | `MONGODB_APP_NAME` | `go-mongodb-app` | Application name for MongoDB logs |
 | `MONGODB_DIRECT_CONNECTION` | `false` | Enable direct connection mode (bypasses replica set discovery) |
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -93,12 +99,14 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Security Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_TLS_ENABLED` | `false` | Enable TLS/SSL connection |
 | `MONGODB_TLS_INSECURE` | `false` | Skip TLS certificate verification (dev only) |
 | `MONGODB_TLS_CA_FILE` | `""` | Path to CA certificate file |
 | `MONGODB_TLS_CERT_FILE` | `""` | Path to client certificate file |
 | `MONGODB_TLS_KEY_FILE` | `""` | Path to client private key file |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -107,8 +115,10 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Document Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_ID_MODE` | `ulid` | ID generation strategy (ulid, objectid, custom) |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -117,11 +127,13 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Pool Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_MAX_POOL_SIZE` | `100` | Maximum connections in pool |
 | `MONGODB_MIN_POOL_SIZE` | `5` | Minimum connections in pool |
 | `MONGODB_MAX_IDLE_TIME` | `5m` | Maximum connection idle time |
 | `MONGODB_MAX_CONN_IDLE_TIME` | `10m` | Maximum connection idle time |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -130,10 +142,12 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Timeout Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_CONNECT_TIMEOUT` | `10s` | Initial connection timeout |
 | `MONGODB_SERVER_SELECT_TIMEOUT` | `5s` | Server selection timeout |
 | `MONGODB_SOCKET_TIMEOUT` | `10s` | Socket operation timeout |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -142,12 +156,14 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Reconnection Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_RECONNECT_ENABLED` | `true` | Enable auto-reconnection |
 | `MONGODB_RECONNECT_DELAY` | `5s` | Initial reconnection delay |
 | `MONGODB_MAX_RECONNECT_DELAY` | `1m` | Maximum reconnection delay |
 | `MONGODB_RECONNECT_BACKOFF` | `2.0` | Reconnection backoff multiplier |
 | `MONGODB_MAX_RECONNECT_ATTEMPTS` | `10` | Maximum reconnection attempts |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -156,9 +172,11 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Health Check Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_HEALTH_CHECK_ENABLED` | `true` | Enable health checks |
 | `MONGODB_HEALTH_CHECK_INTERVAL` | `30s` | Health check interval |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -167,12 +185,14 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Performance Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_COMPRESSION_ENABLED` | `true` | Enable compression |
 | `MONGODB_COMPRESSION_ALGORITHM` | `snappy` | Compression algorithm (snappy, zlib, zstd) |
 | `MONGODB_READ_PREFERENCE` | `primary` | Read preference |
 | `MONGODB_WRITE_CONCERN` | `majority` | Write concern |
 | `MONGODB_READ_CONCERN` | `local` | Read concern |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -181,9 +201,11 @@ log.Printf("[%s] Service started successfully", client.Name())
 ### Logging Variables
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| :--- | :--- | :--- |
 | `MONGODB_LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
 | `MONGODB_LOG_FORMAT` | `json` | Log format (json, text) |
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -219,6 +241,8 @@ MONGODB_READ_PREFERENCE=primaryPreferred
 MONGODB_DIRECT_CONNECTION=false
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -252,6 +276,8 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: password
       MONGO_INITDB_DATABASE: myapp
 ```
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -291,6 +317,8 @@ spec:
           value: "my-app-pod"
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -314,6 +342,8 @@ client, _ := mongodb.NewClient(mongodb.FromEnv())
 // All configuration is handled automatically with priority-based overrides
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -331,6 +361,8 @@ export MONGODB_DATABASE=myapp_dev
 export MONGODB_ID_MODE=ulid
 export MONGODB_LOG_LEVEL=debug
 ```
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -366,6 +398,8 @@ export MONGODB_LOG_LEVEL=info
 export MONGODB_LOG_FORMAT=json
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -390,6 +424,8 @@ paymentsClient, _ := mongodb.NewClient(mongodb.FromEnvWithPrefix("PAYMENTS_"))
 ordersClient, _ := mongodb.NewClient(mongodb.FromEnvWithPrefix("ORDERS_"))
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -405,6 +441,8 @@ ordersClient, _ := mongodb.NewClient(mongodb.FromEnvWithPrefix("ORDERS_"))
 - **Enable TLS in production** - Include TLS options in your URI
 - **Rotate passwords regularly** - Update environment variables during deployments
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -416,6 +454,8 @@ ordersClient, _ := mongodb.NewClient(mongodb.FromEnvWithPrefix("ORDERS_"))
 - **Enable compression** - Use compression for network-bound workloads
 - **Choose read preferences wisely** - Balance consistency and performance needs
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -426,6 +466,8 @@ ordersClient, _ := mongodb.NewClient(mongodb.FromEnvWithPrefix("ORDERS_"))
 - **Enable health checks** - Monitor connection health with `MONGODB_HEALTH_CHECK_ENABLED`
 - **Configure structured logging** - Use JSON logging in production environments
 - **Set appropriate log levels** - Use `debug` for development, `info` for production
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -500,12 +542,16 @@ func main() {
 }
 ```
 
+&nbsp;
+
 **Key Benefits:**
 
 - **`mongodb.WithAppName("billing-api-v1.2")`** - MongoDB server logs show this name, helping DBAs identify which service is connecting
 - **`mongodb.WithConnectionName("reporting-read-replica")`** - Your application logs use this name via `client.Name()`, helping developers identify which client instance
 - **Environment configuration** - Shared connection details (host, credentials, database) loaded automatically
 - **Functional options** - Instance-specific overrides (read preference, pool size) applied cleanly
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -558,6 +604,8 @@ func main() {
 }
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -584,6 +632,8 @@ ordersCollection := ordersClient.Database("").Collection("orders")
 _, err1 := paymentsCollection.UpdateMany(ctx, paymentFilter, orderUpdate)
 _, err2 := ordersCollection.UpdateMany(ctx, filter.Eq("payment_id", "abc123"), orderUpdate)
 ```
+
+&nbsp;
 
 🔝 [back to top](#environment-configuration)
 
@@ -614,6 +664,8 @@ export MONGODB_USERNAME=prod_user
 export MONGODB_PASSWORD=prod_password
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -635,6 +687,8 @@ export MONGODB_REPLICA_SET=rs0
 export MONGODB_TLS_ENABLED=true
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -651,6 +705,8 @@ export MONGODB_AUTH_DATABASE=admin
 export MONGODB_REPLICA_SET=atlas-cluster-shard-0
 ```
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
 
 &nbsp;
@@ -659,16 +715,20 @@ export MONGODB_REPLICA_SET=atlas-cluster-shard-0
 
 The complete list of environment variables is also available in the [Environment Variables](environment-variables.md) documentation.
 
+&nbsp;
+
 🔝 [back to top](#environment-configuration)
+
+&nbsp;
 
 &nbsp;
 
 ---
 
-&nbsp;
-
-An open source project brought to you by the [Cloudresty](https://cloudresty.com) team.
+### Cloudresty
 
 [Website](https://cloudresty.com) &nbsp;|&nbsp; [LinkedIn](https://www.linkedin.com/company/cloudresty) &nbsp;|&nbsp; [BlueSky](https://bsky.app/profile/cloudresty.com) &nbsp;|&nbsp; [GitHub](https://github.com/cloudresty) &nbsp;|&nbsp; [Docker Hub](https://hub.docker.com/u/cloudresty)
+
+<sub>&copy; Cloudresty</sub>
 
 &nbsp;

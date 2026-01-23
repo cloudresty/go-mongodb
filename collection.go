@@ -3,16 +3,43 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"sync"
 	"time"
 
-	"github.com/cloudresty/go-mongodb/filter"
-	"github.com/cloudresty/go-mongodb/pipeline"
-	"github.com/cloudresty/go-mongodb/update"
+	"github.com/cloudresty/go-mongodb/v2/filter"
+	"github.com/cloudresty/go-mongodb/v2/pipeline"
+	"github.com/cloudresty/go-mongodb/v2/update"
 	"github.com/cloudresty/ulid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
+
+// idFieldInfo holds cached information about a struct's ID field.
+// This avoids repeated reflection on the same type.
+type idFieldInfo struct {
+	// hasIDField indicates if the struct has an _id field
+	hasIDField bool
+	// fieldIndex is the index of the ID field in the struct (valid only if hasIDField is true)
+	fieldIndex int
+	// isStringType indicates if the ID field is a string type (can accept ULID directly)
+	isStringType bool
+	// isObjectIDType indicates if the ID field is primitive.ObjectID (incompatible with ULID)
+	isObjectIDType bool
+	// fieldTypeName stores the type name for error messages
+	fieldTypeName string
+}
+
+// idFieldCache caches ID field metadata by reflect.Type to avoid repeated reflection.
+// This is a package-level cache that persists across all collection operations.
+var idFieldCache sync.Map // map[reflect.Type]*idFieldInfo
+
+// ErrULIDIncompatibleType is returned when IDMode is ULID but the struct has a non-string ID field.
+// This prevents data corruption where a string ULID would be inserted but cannot be decoded
+// back into the actual field type (e.g., ObjectID, int64, []byte, custom types).
+// Only string or interface{} fields are compatible with ULID mode.
+var ErrULIDIncompatibleType = fmt.Errorf("IDMode is ULID but struct ID field has incompatible type")
 
 // Collection wraps a MongoDB collection with enhanced functionality
 type Collection struct {
@@ -98,7 +125,307 @@ func (col *Collection) Name() string {
 	return col.name
 }
 
-// InsertOne inserts a single document with ULID generation
+// hasID checks if a document already has an _id field without full marshal/unmarshal.
+// Returns (hasID, existingID) where existingID is only valid if hasID is true.
+func hasID(document any) (bool, any) {
+	switch doc := document.(type) {
+	case bson.M:
+		if id, exists := doc["_id"]; exists {
+			return true, id
+		}
+		return false, nil
+	case bson.D:
+		for _, elem := range doc {
+			if elem.Key == "_id" {
+				return true, elem.Value
+			}
+		}
+		return false, nil
+	case map[string]any:
+		if id, exists := doc["_id"]; exists {
+			return true, id
+		}
+		return false, nil
+	default:
+		// Use reflection for structs
+		return hasIDReflect(document)
+	}
+}
+
+// hasIDReflect uses reflection to check if a struct has a non-zero _id field.
+// Uses a type cache to avoid repeated reflection on the same struct type.
+func hasIDReflect(document any) (bool, any) {
+	v := reflect.ValueOf(document)
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return false, nil
+		}
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return false, nil
+	}
+
+	t := v.Type()
+
+	// Check the cache first
+	if cached, ok := idFieldCache.Load(t); ok {
+		info := cached.(*idFieldInfo)
+		if !info.hasIDField {
+			return false, nil
+		}
+		fieldVal := v.Field(info.fieldIndex)
+		if !fieldVal.IsZero() {
+			return true, fieldVal.Interface()
+		}
+		return false, nil
+	}
+
+	// Not in cache - perform reflection and cache the result
+	info := findIDFieldInfo(t)
+	idFieldCache.Store(t, info)
+
+	if !info.hasIDField {
+		return false, nil
+	}
+	fieldVal := v.Field(info.fieldIndex)
+	if !fieldVal.IsZero() {
+		return true, fieldVal.Interface()
+	}
+	return false, nil
+}
+
+// findIDFieldInfo performs reflection to find the ID field in a struct type.
+// This is called once per type and the result is cached.
+func findIDFieldInfo(t reflect.Type) *idFieldInfo {
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		// Check bson tag first, then json tag, then field name
+		tag := field.Tag.Get("bson")
+		if tag == "" {
+			tag = field.Tag.Get("json")
+		}
+		// Parse tag to get field name (before comma)
+		if idx := len(tag); idx > 0 {
+			for j := 0; j < len(tag); j++ {
+				if tag[j] == ',' {
+					tag = tag[:j]
+					break
+				}
+			}
+		}
+
+		if tag == "_id" || (tag == "" && field.Name == "ID") {
+			// Check if field is ObjectID type (primitive.ObjectID)
+			isObjectID := field.Type.String() == "primitive.ObjectID"
+			return &idFieldInfo{
+				hasIDField:     true,
+				fieldIndex:     i,
+				isStringType:   field.Type.Kind() == reflect.String,
+				isObjectIDType: isObjectID,
+				fieldTypeName:  field.Type.String(),
+			}
+		}
+	}
+	return &idFieldInfo{hasIDField: false, fieldIndex: -1, isStringType: false, isObjectIDType: false, fieldTypeName: ""}
+}
+
+// inspectResult holds the result of inspecting a document for ID information.
+// This consolidates all ID-related checks into a single pass.
+type inspectResult struct {
+	hasID    bool          // Whether the document already has a non-zero ID
+	idValue  any           // The current ID value (if hasID is true)
+	info     *idFieldInfo  // Cached field info (for structs only)
+	isStruct bool          // Whether the document is a struct (or pointer to struct)
+	isPtr    bool          // Whether the document is a pointer (can be modified in place)
+	elemVal  reflect.Value // The struct value (for setting fields)
+}
+
+// inspectStruct performs a single-pass inspection of a struct document.
+// Returns all ID-related information needed for insert operations.
+// This avoids multiple cache lookups by consolidating hasID and field info checks.
+func inspectStruct(document any) *inspectResult {
+	result := &inspectResult{}
+
+	v := reflect.ValueOf(document)
+	if v.Kind() == reflect.Ptr {
+		result.isPtr = true
+		if v.IsNil() {
+			return result
+		}
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return result
+	}
+
+	result.isStruct = true
+	result.elemVal = v
+	t := v.Type()
+
+	// Get cached field info (single lookup)
+	if cached, ok := idFieldCache.Load(t); ok {
+		result.info = cached.(*idFieldInfo)
+	} else {
+		result.info = findIDFieldInfo(t)
+		idFieldCache.Store(t, result.info)
+	}
+
+	// Check if ID field has a value
+	if result.info.hasIDField {
+		fieldVal := v.Field(result.info.fieldIndex)
+		if !fieldVal.IsZero() {
+			result.hasID = true
+			result.idValue = fieldVal.Interface()
+		}
+	}
+
+	return result
+}
+
+// trySetULIDOnStruct attempts to set a ULID directly on a struct's ID field using reflection.
+// Uses pre-computed inspectResult to avoid duplicate cache lookups.
+// Returns (modifiedDocument, generatedID, success). If success is false, caller should fall back
+// to the marshal/unmarshal approach.
+func trySetULIDOnStructWithInfo(document any, result *inspectResult) (any, string, bool) {
+	// Can only do zero-allocation injection if:
+	// 1. Document is a pointer (so we can modify it)
+	// 2. The struct has an ID field
+	// 3. The ID field is a string type
+	// 4. The field is settable
+	if !result.isPtr || !result.isStruct || result.info == nil {
+		return document, "", false
+	}
+	if !result.info.hasIDField || !result.info.isStringType {
+		return document, "", false
+	}
+
+	field := result.elemVal.Field(result.info.fieldIndex)
+	if !field.CanSet() {
+		return document, "", false
+	}
+
+	// Generate ULID
+	id, err := ulid.New()
+	if err != nil {
+		return document, "", false
+	}
+
+	// Set the ULID directly on the struct field
+	field.SetString(id)
+
+	return document, id, true
+}
+
+// prepareDocumentForInsert prepares a document for insertion, adding ULID if needed.
+// Returns the document to insert and the generated ID (if any).
+//
+// Performance: For struct pointers with string ID fields, this uses zero-allocation
+// ID injection by setting the ULID directly on the struct field, avoiding marshal/unmarshal.
+//
+// Safety: Returns ErrULIDObjectIDMismatch if IDMode is ULID but the struct has an ObjectID field,
+// preventing data corruption where a string ULID would be inserted but cannot be decoded back.
+func (col *Collection) prepareDocumentForInsert(document any) (any, error) {
+	// Fast path for non-ULID modes
+	if col.client.config.IDMode != IDModeULID {
+		return document, nil
+	}
+
+	// Handle known map types first (no reflection needed)
+	switch doc := document.(type) {
+	case bson.M:
+		if _, exists := doc["_id"]; exists {
+			return document, nil
+		}
+		// Add ULID to map
+		id, err := ulid.New()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate ULID: %w", err)
+		}
+		doc["_id"] = id
+		return doc, nil
+	case bson.D:
+		for _, elem := range doc {
+			if elem.Key == "_id" {
+				return document, nil
+			}
+		}
+		// Convert to bson.M and add ULID
+		docMap := make(bson.M, len(doc)+1)
+		for _, elem := range doc {
+			docMap[elem.Key] = elem.Value
+		}
+		id, err := ulid.New()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate ULID: %w", err)
+		}
+		docMap["_id"] = id
+		return docMap, nil
+	case map[string]any:
+		if _, exists := doc["_id"]; exists {
+			return document, nil
+		}
+		// Add ULID to map
+		id, err := ulid.New()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate ULID: %w", err)
+		}
+		doc["_id"] = id
+		return doc, nil
+	}
+
+	// For structs, use single-pass inspection
+	result := inspectStruct(document)
+
+	// If document already has an ID, pass through
+	if result.hasID {
+		return document, nil
+	}
+
+	// Safety check: If struct has an ID field that is NOT string or interface{}, reject it.
+	// A ULID is a string, so inserting it into a non-string field (int64, ObjectID, []byte, etc.)
+	// would cause decode failures when reading the document back.
+	if result.isStruct && result.info != nil && result.info.hasIDField {
+		// Only string and interface{} are compatible with ULID mode
+		if !result.info.isStringType && result.info.fieldTypeName != "interface {}" {
+			return nil, fmt.Errorf("%w: field type is %s; use string or interface{}", ErrULIDIncompatibleType, result.info.fieldTypeName)
+		}
+	}
+
+	// Try zero-allocation ID injection for struct pointers with string ID fields
+	if modifiedDoc, _, ok := trySetULIDOnStructWithInfo(document, result); ok {
+		return modifiedDoc, nil
+	}
+
+	// Fall back to marshal/unmarshal for non-pointer structs or non-string ID fields
+	var docMap bson.M
+	bytes, err := bson.Marshal(document)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal document: %w", err)
+	}
+	if err := bson.Unmarshal(bytes, &docMap); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal document: %w", err)
+	}
+
+	// Generate and add ULID
+	id, err := ulid.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate ULID: %w", err)
+	}
+	docMap["_id"] = id
+
+	return docMap, nil
+}
+
+// InsertOne inserts a single document with automatic ULID generation when IDMode is IDModeULID.
+//
+// Performance: For struct pointers with string ID fields (e.g., *User with ID string `bson:"_id"`),
+// this uses zero-allocation ID injection by setting the ULID directly on the struct field.
+// This avoids the marshal/unmarshal overhead and provides optimal performance.
+//
+// For non-pointer structs or non-string ID fields, the document is converted to bson.M.
 func (col *Collection) InsertOne(ctx context.Context, document any, opts ...options.Lister[options.InsertOneOptions]) (*InsertOneResult, error) {
 	if ctx == nil {
 		var cancel context.CancelFunc
@@ -106,31 +433,13 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 		defer cancel()
 	}
 
-	// Generate ULID for _id if not present
-	docMap, ok := document.(bson.M)
-	if !ok {
-		// Convert to bson.M if possible
-		bytes, err := bson.Marshal(document)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal document: %w", err)
-		}
-		if err := bson.Unmarshal(bytes, &docMap); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal document: %w", err)
-		}
+	// Prepare document (add ULID if needed)
+	docToInsert, err := col.prepareDocumentForInsert(document)
+	if err != nil {
+		return nil, err
 	}
 
-	// Add ULID if _id is not present
-	if _, exists := docMap["_id"]; !exists {
-		if col.client.config.IDMode == IDModeULID {
-			id, err := ulid.New()
-			if err != nil {
-				return nil, fmt.Errorf("failed to generate ULID: %w", err)
-			}
-			docMap["_id"] = id
-		}
-	}
-
-	result, err := col.collection.InsertOne(ctx, docMap, opts...)
+	result, err := col.collection.InsertOne(ctx, docToInsert, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
 		col.client.config.Logger.Error("Failed to insert document",
@@ -142,15 +451,22 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 	col.client.incrementOperationCount()
 	col.client.config.Logger.Debug("Document inserted successfully",
 		"collection", col.name,
-		"id", result.InsertedID.(string))
+		"id", result.InsertedID)
 
 	return &InsertOneResult{
-		InsertedID:  result.InsertedID.(string),
+		InsertedID:  result.InsertedID,
 		GeneratedAt: time.Now(),
 	}, nil
 }
 
-// InsertMany inserts multiple documents with ULID generation
+// InsertMany inserts multiple documents with automatic ULID generation when IDMode is IDModeULID.
+//
+// Performance Note: When using IDModeULID with struct documents that don't have an _id field set,
+// each document undergoes marshal/unmarshal to add the ULID. For maximum performance in high-throughput
+// scenarios, either:
+//   - Pass bson.M or bson.D directly (no conversion needed)
+//   - Pre-set the ID field on your structs before insertion
+//   - Use IDModeObjectID or IDModeCustom to skip ULID generation
 func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...options.Lister[options.InsertManyOptions]) (*InsertManyResult, error) {
 	if ctx == nil {
 		var cancel context.CancelFunc
@@ -159,48 +475,36 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 	}
 
 	now := time.Now()
-	var processedDocs []any
-	var generatedIDs []string
+	processedDocs := make([]any, 0, len(documents))
+	generatedIDs := make([]any, 0, len(documents))
 
 	for _, doc := range documents {
-		// Convert to bson.M
-		docMap, ok := doc.(bson.M)
-		if !ok {
-			bytes, err := bson.Marshal(doc)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal document: %w", err)
-			}
-			if err := bson.Unmarshal(bytes, &docMap); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal document: %w", err)
-			}
+		// Use prepareDocumentForInsert for consistent handling (includes safety checks)
+		preparedDoc, err := col.prepareDocumentForInsert(doc)
+		if err != nil {
+			return nil, err
 		}
 
-		// Add ULID if _id is not present
-		if _, exists := docMap["_id"]; !exists {
-			if col.client.config.IDMode == IDModeULID {
-				newID, err := ulid.New()
-				if err != nil {
-					return nil, fmt.Errorf("failed to generate ULID: %w", err)
-				}
-				docMap["_id"] = newID
-				generatedIDs = append(generatedIDs, newID)
-			}
-		} else {
-			if idStr, ok := docMap["_id"].(string); ok {
-				generatedIDs = append(generatedIDs, idStr)
-			}
-		}
-
-		processedDocs = append(processedDocs, docMap)
+		// Extract the ID from the prepared document
+		_, docID := hasID(preparedDoc)
+		processedDocs = append(processedDocs, preparedDoc)
+		generatedIDs = append(generatedIDs, docID)
 	}
 
-	_, err := col.collection.InsertMany(ctx, processedDocs, opts...)
+	result, err := col.collection.InsertMany(ctx, processedDocs, opts...)
 	if err != nil {
 		col.client.incrementFailureCount()
 		col.client.config.Logger.Error("Failed to insert documents",
 			"error", err.Error(),
 			"collection", col.name)
 		return nil, err
+	}
+
+	// Update generatedIDs with actual IDs from result for documents where we didn't set ID
+	for i, id := range generatedIDs {
+		if id == nil && i < len(result.InsertedIDs) {
+			generatedIDs[i] = result.InsertedIDs[i]
+		}
 	}
 
 	col.client.incrementOperationCount()
@@ -466,10 +770,7 @@ func (col *Collection) UpdateOne(ctx context.Context, filterBuilder *filter.Buil
 		MatchedCount:  result.MatchedCount,
 		ModifiedCount: result.ModifiedCount,
 		UpsertedCount: result.UpsertedCount,
-	}
-
-	if result.UpsertedID != nil {
-		updateResult.UpsertedID = result.UpsertedID.(string)
+		UpsertedID:    result.UpsertedID,
 	}
 
 	col.client.config.Logger.Debug("Document updated successfully",
@@ -511,10 +812,7 @@ func (col *Collection) UpdateMany(ctx context.Context, filterBuilder *filter.Bui
 		MatchedCount:  result.MatchedCount,
 		ModifiedCount: result.ModifiedCount,
 		UpsertedCount: result.UpsertedCount,
-	}
-
-	if result.UpsertedID != nil {
-		updateResult.UpsertedID = result.UpsertedID.(string)
+		UpsertedID:    result.UpsertedID,
 	}
 
 	col.client.config.Logger.Debug("Documents updated successfully",
@@ -551,10 +849,7 @@ func (col *Collection) ReplaceOne(ctx context.Context, filterBuilder *filter.Bui
 		MatchedCount:  result.MatchedCount,
 		ModifiedCount: result.ModifiedCount,
 		UpsertedCount: result.UpsertedCount,
-	}
-
-	if result.UpsertedID != nil {
-		updateResult.UpsertedID = result.UpsertedID.(string)
+		UpsertedID:    result.UpsertedID,
 	}
 
 	col.client.config.Logger.Debug("Document replaced successfully",
@@ -902,7 +1197,10 @@ func (col *Collection) UpsertByField(ctx context.Context, field string, value an
 	filterBuilder := filter.Eq(field, value)
 
 	// Create update using $setOnInsert for the entire document
-	updateBuilder := update.New().SetOnInsertStruct(document)
+	updateBuilder, err := update.New().SetOnInsertStruct(document)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create update builder: %w", err)
+	}
 
 	// Enable upsert
 	opts := options.UpdateOne().SetUpsert(true)
@@ -953,12 +1251,16 @@ func (col *Collection) UpsertByFieldWithOptions(ctx context.Context, field strin
 	filterBuilder := filter.Eq(field, value)
 
 	var updateBuilder *update.Builder
+	var err error
 	if upsertOpts.OnlyInsert {
 		// Use $setOnInsert to ensure existing documents are not modified
-		updateBuilder = update.New().SetOnInsertStruct(document)
+		updateBuilder, err = update.New().SetOnInsertStruct(document)
 	} else {
 		// Use $set to update existing documents as well
-		updateBuilder = update.New().SetStruct(document)
+		updateBuilder, err = update.New().SetStruct(document)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create update builder: %w", err)
 	}
 
 	// Enable upsert
@@ -1288,4 +1590,26 @@ func (col *Collection) FindWithProjectionFields(ctx context.Context, filterBuild
 	}
 
 	return col.FindWithProjection(ctx, filterBuilder, projectionM)
+}
+
+// =============================================================================
+// ID-Based Helper Methods
+// =============================================================================
+
+// FindByID finds a single document by its _id field.
+// This is a convenience method that works with any ID type (ULID string, ObjectID, etc.).
+func (col *Collection) FindByID(ctx context.Context, id any) *FindOneResult {
+	return col.FindOne(ctx, filter.Eq("_id", id))
+}
+
+// UpdateByID updates a single document by its _id field.
+// This is a convenience method that works with any ID type (ULID string, ObjectID, etc.).
+func (col *Collection) UpdateByID(ctx context.Context, id any, updateBuilder *update.Builder) (*UpdateResult, error) {
+	return col.UpdateOne(ctx, filter.Eq("_id", id), updateBuilder)
+}
+
+// DeleteByID deletes a single document by its _id field.
+// This is a convenience method that works with any ID type (ULID string, ObjectID, etc.).
+func (col *Collection) DeleteByID(ctx context.Context, id any) (*DeleteResult, error) {
+	return col.DeleteOne(ctx, filter.Eq("_id", id))
 }

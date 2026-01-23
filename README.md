@@ -8,9 +8,9 @@ A modern, production-ready Go package for MongoDB operations with environment-fi
 
 &nbsp;
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/cloudresty/go-mongodb.svg)](https://pkg.go.dev/github.com/cloudresty/go-mongodb)
+[![Go Reference](https://pkg.go.dev/badge/github.com/cloudresty/go-mongodb/v2.svg)](https://pkg.go.dev/github.com/cloudresty/go-mongodb/v2)
 [![Go Tests](https://github.com/cloudresty/go-mongodb/actions/workflows/ci.yaml/badge.svg)](https://github.com/cloudresty/go-mongodb/actions/workflows/ci.yaml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/cloudresty/go-mongodb)](https://goreportcard.com/report/github.com/cloudresty/go-mongodb)
+[![Go Report Card](https://goreportcard.com/badge/github.com/cloudresty/go-mongodb/v2)](https://goreportcard.com/report/github.com/cloudresty/go-mongodb/v2)
 [![GitHub Tag](https://img.shields.io/github/v/tag/cloudresty/go-mongodb?label=Version)](https://github.com/cloudresty/go-mongodb/tags)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -37,10 +37,11 @@ A modern, production-ready Go package for MongoDB operations with environment-fi
 
 - **Environment-First**: Configure via environment variables for cloud-native deployments
 - **ULID IDs**: 6x faster generation, database-optimized, lexicographically sortable
-- **Auto-Reconnection**: Intelligent retry with configurable backoff
+- **Zero-Allocation ID Injection**: Best-in-class performance for struct inserts
 - **Production-Ready**: Graceful shutdown, timeouts, health checks, transaction support
+- **Type-Safe API**: Strict validation prevents data corruption
 - **Pluggable Logging**: Silent by default, integrate with any logging framework
-- **High Performance**: Optimized for throughput with efficient ULID generation
+- **Command Monitoring**: Built-in APM support for Datadog, OpenTelemetry, etc.
 - **Fully Tested**: Comprehensive test coverage with CI/CD pipeline
 
 &nbsp;
@@ -56,8 +57,10 @@ A modern, production-ready Go package for MongoDB operations with environment-fi
 ### Installation
 
 ```bash
-go get github.com/cloudresty/go-mongodb
+go get github.com/cloudresty/go-mongodb/v2
 ```
+
+> **Note**: This is v2 of the library. For migration from v1, see [Migration Guide](docs/migration-v2.md).
 
 &nbsp;
 
@@ -73,9 +76,9 @@ package main
 import (
     "context"
     "log"
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
 )
 
 type User struct {
@@ -149,10 +152,11 @@ export MONGODB_CONNECTION_NAME=my-service
 | Document | Description |
 | :--- | :--- |
 | [Getting Started](docs/getting-started.md) | Quick start guide and installation instructions |
+| [Migration Guide v2](docs/migration-v2.md) | Migrating from v1 to v2 |
 | [API Reference](docs/api-reference.md) | Complete function reference and usage patterns |
 | [Environment Variables](docs/environment-variables.md) | Supported variables and their purpose |
 | [Environment Configuration](docs/environment-configuration.md) | Environment variables and deployment configurations |
-| [Production Features](docs/production-features.md) | Auto-reconnection, graceful shutdown, health checks, transactions |
+| [Production Features](docs/production-features.md) | Graceful shutdown, health checks, transactions |
 | [ID Generation](docs/id-generation.md) | High-performance, database-optimized document identifiers |
 | [Examples](docs/examples.md) | Comprehensive examples and usage patterns |
 
@@ -221,7 +225,7 @@ import (
     "context"
     "log"
     "time"
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {

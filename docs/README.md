@@ -11,6 +11,7 @@ Please check out the latest documentation for the go-mongodb package, which prov
 ## Table of Contents
 
 - [Getting Started](getting-started.md)
+- [Migration Guide v2](migration-v2.md) - **New in v2!**
 - [API Reference](api-reference.md)
 - [Environment Variables](environment-variables.md)
 - [Environment Configuration](environment-configuration.md)

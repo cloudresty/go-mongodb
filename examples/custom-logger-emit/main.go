@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudresty/emit"
-	"github.com/cloudresty/go-mongodb"
+	"github.com/cloudresty/go-mongodb/v2"
 )
 
 // EmitAdapter adapts the emit logger to satisfy the mongodb.Logger interface

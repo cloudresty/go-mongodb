@@ -1,3 +1,7 @@
+// go-mongodb v2 Example: Basic Client
+//
+// This example demonstrates basic MongoDB client setup with v2.
+// The client uses environment variables for configuration.
 package main
 
 import (
@@ -5,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudresty/go-mongodb"
+	"github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {

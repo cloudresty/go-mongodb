@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/filter"
-	"github.com/cloudresty/go-mongodb/pipeline"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/filter"
+	"github.com/cloudresty/go-mongodb/v2/pipeline"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 

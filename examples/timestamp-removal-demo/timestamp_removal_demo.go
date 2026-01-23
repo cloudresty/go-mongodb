@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/update"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/update"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 

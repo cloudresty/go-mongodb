@@ -1,7 +1,9 @@
 package update
 
 import (
-	"github.com/cloudresty/go-mongodb/filter"
+	"fmt"
+
+	"github.com/cloudresty/go-mongodb/v2/filter"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -70,28 +72,28 @@ func (b *Builder) SetMap(fields map[string]any) *Builder {
 	return b
 }
 
-// SetStruct sets all fields from a struct
-func SetStruct(document any) *Builder {
+// SetStruct sets all fields from a struct.
+// Returns an error if the document cannot be marshaled to BSON.
+func SetStruct(document any) (*Builder, error) {
 	// Convert struct to bson.M
 	bytes, err := bson.Marshal(document)
 	if err != nil {
-		// Return empty builder if marshal fails
-		return &Builder{update: bson.M{}}
+		return nil, fmt.Errorf("failed to marshal document: %w", err)
 	}
 
 	var fields bson.M
 	if err := bson.Unmarshal(bytes, &fields); err != nil {
-		// Return empty builder if unmarshal fails
-		return &Builder{update: bson.M{}}
+		return nil, fmt.Errorf("failed to unmarshal document: %w", err)
 	}
 
 	return &Builder{
 		update: bson.M{"$set": fields},
-	}
+	}, nil
 }
 
-// SetStruct sets all fields from a struct (method version)
-func (b *Builder) SetStruct(document any) *Builder {
+// SetStruct sets all fields from a struct (method version).
+// Returns an error if the document cannot be marshaled to BSON.
+func (b *Builder) SetStruct(document any) (*Builder, error) {
 	if b.update["$set"] == nil {
 		b.update["$set"] = bson.M{}
 	}
@@ -99,12 +101,12 @@ func (b *Builder) SetStruct(document any) *Builder {
 	// Convert struct to bson.M
 	bytes, err := bson.Marshal(document)
 	if err != nil {
-		return b // Return existing builder if marshal fails
+		return nil, fmt.Errorf("failed to marshal document: %w", err)
 	}
 
 	var fields bson.M
 	if err := bson.Unmarshal(bytes, &fields); err != nil {
-		return b // Return existing builder if unmarshal fails
+		return nil, fmt.Errorf("failed to unmarshal document: %w", err)
 	}
 
 	// Merge fields into existing $set
@@ -112,7 +114,7 @@ func (b *Builder) SetStruct(document any) *Builder {
 		b.update["$set"].(bson.M)[k] = v
 	}
 
-	return b
+	return b, nil
 }
 
 // Unset removes the specified fields
@@ -223,28 +225,28 @@ func (b *Builder) SetOnInsertMap(fields map[string]any) *Builder {
 	return b
 }
 
-// SetOnInsertStruct sets all fields from a struct only when an upsert inserts a document
-func SetOnInsertStruct(document any) *Builder {
+// SetOnInsertStruct sets all fields from a struct only when an upsert inserts a document.
+// Returns an error if the document cannot be marshaled to BSON.
+func SetOnInsertStruct(document any) (*Builder, error) {
 	// Convert struct to bson.M
 	bytes, err := bson.Marshal(document)
 	if err != nil {
-		// Return empty builder if marshal fails
-		return &Builder{update: bson.M{}}
+		return nil, fmt.Errorf("failed to marshal document: %w", err)
 	}
 
 	var fields bson.M
 	if err := bson.Unmarshal(bytes, &fields); err != nil {
-		// Return empty builder if unmarshal fails
-		return &Builder{update: bson.M{}}
+		return nil, fmt.Errorf("failed to unmarshal document: %w", err)
 	}
 
 	return &Builder{
 		update: bson.M{"$setOnInsert": fields},
-	}
+	}, nil
 }
 
-// SetOnInsertStruct sets all fields from a struct only when an upsert inserts a document (method version)
-func (b *Builder) SetOnInsertStruct(document any) *Builder {
+// SetOnInsertStruct sets all fields from a struct only when an upsert inserts a document (method version).
+// Returns an error if the document cannot be marshaled to BSON.
+func (b *Builder) SetOnInsertStruct(document any) (*Builder, error) {
 	if b.update["$setOnInsert"] == nil {
 		b.update["$setOnInsert"] = bson.M{}
 	}
@@ -252,12 +254,12 @@ func (b *Builder) SetOnInsertStruct(document any) *Builder {
 	// Convert struct to bson.M
 	bytes, err := bson.Marshal(document)
 	if err != nil {
-		return b // Return existing builder if marshal fails
+		return nil, fmt.Errorf("failed to marshal document: %w", err)
 	}
 
 	var fields bson.M
 	if err := bson.Unmarshal(bytes, &fields); err != nil {
-		return b // Return existing builder if unmarshal fails
+		return nil, fmt.Errorf("failed to unmarshal document: %w", err)
 	}
 
 	// Merge fields into existing $setOnInsert
@@ -265,7 +267,7 @@ func (b *Builder) SetOnInsertStruct(document any) *Builder {
 		b.update["$setOnInsert"].(bson.M)[k] = v
 	}
 
-	return b
+	return b, nil
 }
 
 // Array Update Operators

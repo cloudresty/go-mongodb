@@ -1,3 +1,11 @@
+// go-mongodb v2 Example: ULID Demo
+//
+// This example demonstrates ULID-based document IDs with v2.
+//
+// v2 Changes:
+// - mongoid.NewULID() now panics on entropy failure (fail-fast prevents silent corruption)
+// - Use mongoid.NewULIDWithError() for explicit error handling
+// - ID field must be string type when using IDModeULID (type validation enforced)
 package main
 
 import (
@@ -5,8 +13,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/filter"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/filter"
 )
 
 // User represents a user document with ULID support

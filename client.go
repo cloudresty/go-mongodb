@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"strings"
 	"sync"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/cloudresty/ulid"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/event"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readconcern"
@@ -28,18 +30,17 @@ const (
 	IDModeCustom IDMode = "custom"
 )
 
-// Client represents a MongoDB client with auto-reconnection and environment-first configuration
+// Client represents a MongoDB client with environment-first configuration.
+// The MongoDB driver handles reconnection automatically via SDAM (Server Discovery and Monitoring).
 type Client struct {
-	client         *mongo.Client
-	config         *Config
-	database       *mongo.Database
-	mutex          sync.RWMutex
-	isConnected    bool
-	reconnectCount int64
-	lastReconnect  time.Time
-	healthTicker   *time.Ticker
-	shutdownChan   chan struct{}
-	shutdownOnce   sync.Once
+	client       *mongo.Client
+	config       *Config
+	database     *mongo.Database
+	mutex        sync.RWMutex
+	isConnected  bool
+	healthTicker *time.Ticker
+	shutdownChan chan struct{}
+	shutdownOnce sync.Once
 
 	// Connection pool monitoring
 	poolStats struct {
@@ -49,6 +50,10 @@ type Client struct {
 		totalConnections   int
 		operationsExecuted int64
 		operationsFailed   int64
+		// connStates tracks the state of each connection by its ID.
+		// Values are "idle" or "active". This prevents metrics drift
+		// when connections are closed while in different states.
+		connStates map[int64]string
 	}
 }
 
@@ -73,13 +78,6 @@ type Config struct {
 	ServerSelectTimeout time.Duration `env:"MONGODB_SERVER_SELECT_TIMEOUT,default=5s"`
 	SocketTimeout       time.Duration `env:"MONGODB_SOCKET_TIMEOUT,default=10s"`
 
-	// Reconnection settings
-	ReconnectEnabled     bool          `env:"MONGODB_RECONNECT_ENABLED,default=true"`
-	ReconnectDelay       time.Duration `env:"MONGODB_RECONNECT_DELAY,default=5s"`
-	MaxReconnectDelay    time.Duration `env:"MONGODB_MAX_RECONNECT_DELAY,default=1m"`
-	ReconnectBackoff     float64       `env:"MONGODB_RECONNECT_BACKOFF,default=2.0"`
-	MaxReconnectAttempts int           `env:"MONGODB_MAX_RECONNECT_ATTEMPTS,default=10"`
-
 	// Health check settings
 	HealthCheckEnabled  bool          `env:"MONGODB_HEALTH_CHECK_ENABLED,default=true"`
 	HealthCheckInterval time.Duration `env:"MONGODB_HEALTH_CHECK_INTERVAL,default=30s"`
@@ -96,8 +94,15 @@ type Config struct {
 	AppName        string `env:"MONGODB_APP_NAME,default=go-mongodb-app"`
 	ConnectionName string `env:"MONGODB_CONNECTION_NAME"`
 
+	// TLS/SSL settings
+	TLSEnabled bool        `env:"MONGODB_TLS_ENABLED,default=false"`
+	TLSConfig  *tls.Config // Custom TLS configuration (takes precedence over TLSEnabled)
+
 	// ID Generation settings
 	IDMode IDMode `env:"MONGODB_ID_MODE,default=ulid"`
+
+	// Observability settings
+	CommandMonitor *event.CommandMonitor // Optional command monitor for APM integration (Datadog, OpenTelemetry, etc.)
 
 	// Logging
 	LogLevel  string `env:"MONGODB_LOG_LEVEL,default=info"`
@@ -174,23 +179,23 @@ type HealthStatus struct {
 
 // InsertOneResult represents the result of an insert operation
 type InsertOneResult struct {
-	InsertedID  string    `json:"inserted_id" bson:"_id"` // ULID used directly as _id
+	InsertedID  any       `json:"inserted_id" bson:"_id"` // Can be ULID string, ObjectID, or custom type
 	GeneratedAt time.Time `json:"generated_at" bson:"generated_at"`
 }
 
 // InsertManyResult represents the result of a bulk insert operation
 type InsertManyResult struct {
-	InsertedIDs   []string  `json:"inserted_ids" bson:"inserted_ids"` // ULIDs used directly as _ids
+	InsertedIDs   []any     `json:"inserted_ids" bson:"inserted_ids"` // Can be ULID strings, ObjectIDs, or custom types
 	InsertedCount int64     `json:"inserted_count" bson:"inserted_count"`
 	GeneratedAt   time.Time `json:"generated_at" bson:"generated_at"`
 }
 
 // UpdateResult represents the result of an update operation
 type UpdateResult struct {
-	MatchedCount  int64  `json:"matched_count" bson:"matched_count"`
-	ModifiedCount int64  `json:"modified_count" bson:"modified_count"`
-	UpsertedID    string `json:"upserted_id,omitempty" bson:"upserted_id,omitempty"` // ULID string
-	UpsertedCount int64  `json:"upserted_count" bson:"upserted_count"`
+	MatchedCount  int64 `json:"matched_count" bson:"matched_count"`
+	ModifiedCount int64 `json:"modified_count" bson:"modified_count"`
+	UpsertedID    any   `json:"upserted_id,omitempty" bson:"upserted_id,omitempty"` // Can be any ID type
+	UpsertedCount int64 `json:"upserted_count" bson:"upserted_count"`
 }
 
 // DeleteResult represents the result of a delete operation
@@ -291,6 +296,8 @@ func NewClientWithConfig(config *Config) (*Client, error) {
 		config:       config,
 		shutdownChan: make(chan struct{}),
 	}
+	// Initialize connection state tracking map
+	client.poolStats.connStates = make(map[int64]string)
 
 	if err := client.connect(); err != nil {
 		return nil, fmt.Errorf("failed to connect to MongoDB: %w", err)
@@ -331,7 +338,6 @@ func (c *Client) connect() error {
 	c.client = client
 	c.database = client.Database(c.config.Database)
 	c.isConnected = true
-	c.lastReconnect = time.Now()
 
 	return nil
 }
@@ -357,6 +363,23 @@ func (c *Client) buildClientOptions() *options.ClientOptions {
 	// Application settings
 	opts.SetAppName(c.config.AppName)
 
+	// Connection pool monitoring for real metrics
+	poolMonitor := &event.PoolMonitor{
+		Event: func(evt *event.PoolEvent) {
+			c.handlePoolEvent(evt)
+		},
+	}
+	opts.SetPoolMonitor(poolMonitor)
+
+	// TLS/SSL configuration
+	if c.config.TLSConfig != nil {
+		// Custom TLS config takes precedence
+		opts.SetTLSConfig(c.config.TLSConfig)
+	} else if c.config.TLSEnabled {
+		// Use default TLS config when TLSEnabled is true but no custom config provided
+		opts.SetTLSConfig(&tls.Config{})
+	}
+
 	// Compression
 	if c.config.CompressionEnabled {
 		compressors := []string{c.config.CompressionAlgorithm}
@@ -375,6 +398,11 @@ func (c *Client) buildClientOptions() *options.ClientOptions {
 		opts.SetReadPreference(readpref.SecondaryPreferred())
 	case "nearest":
 		opts.SetReadPreference(readpref.Nearest())
+	}
+
+	// Command monitoring for APM integration (Datadog, OpenTelemetry, etc.)
+	if c.config.CommandMonitor != nil {
+		opts.SetMonitor(c.config.CommandMonitor)
 	}
 
 	return opts
@@ -429,7 +457,9 @@ func (c *Client) startHealthCheck() {
 	}()
 }
 
-// performHealthCheck checks the health of the MongoDB connection
+// performHealthCheck checks the health of the MongoDB connection.
+// Note: The MongoDB driver handles reconnection automatically via SDAM.
+// This health check only reports status; it does not attempt manual reconnection.
 func (c *Client) performHealthCheck() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -439,82 +469,33 @@ func (c *Client) performHealthCheck() {
 	c.mutex.RUnlock()
 
 	if client == nil {
-		c.config.Logger.Warn("Health check: client is nil, attempting reconnect")
-		go c.attemptReconnect()
+		c.config.Logger.Warn("Health check: client is nil")
+		c.mutex.Lock()
+		c.isConnected = false
+		c.mutex.Unlock()
 		return
 	}
 
 	start := time.Now()
 	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-		c.config.Logger.Warn("Health check failed, attempting reconnect",
+		c.config.Logger.Warn("Health check failed",
 			"error", err.Error())
 		c.mutex.Lock()
 		c.isConnected = false
 		c.mutex.Unlock()
-
-		go c.attemptReconnect()
+		// Note: The MongoDB driver will automatically attempt to reconnect
+		// via its built-in SDAM (Server Discovery and Monitoring) mechanism.
 		return
 	}
 
 	latency := time.Since(start)
 
+	c.mutex.Lock()
+	c.isConnected = true
+	c.mutex.Unlock()
+
 	c.config.Logger.Debug("Health check passed",
 		"latency", latency)
-}
-
-// attemptReconnect attempts to reconnect to MongoDB with exponential backoff
-func (c *Client) attemptReconnect() {
-	if !c.config.ReconnectEnabled {
-		c.config.Logger.Warn("Reconnection is disabled")
-		return
-	}
-
-	c.mutex.RLock()
-	isConnected := c.isConnected
-	c.mutex.RUnlock()
-
-	if isConnected {
-		return // Already connected
-	}
-
-	delay := c.config.ReconnectDelay
-	maxDelay := c.config.MaxReconnectDelay
-	backoff := c.config.ReconnectBackoff
-	maxAttempts := c.config.MaxReconnectAttempts
-
-	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		c.config.Logger.Info("Attempting to reconnect to MongoDB",
-			"attempt", attempt,
-			"max_attempts", maxAttempts,
-			"delay", delay)
-
-		if err := c.connect(); err != nil {
-			c.config.Logger.Warn("Reconnection attempt failed",
-				"attempt", attempt,
-				"error", err.Error())
-
-			if attempt < maxAttempts {
-				time.Sleep(delay)
-				delay = time.Duration(float64(delay) * backoff)
-				if delay > maxDelay {
-					delay = maxDelay
-				}
-			}
-			continue
-		}
-
-		c.mutex.Lock()
-		c.reconnectCount++
-		c.mutex.Unlock()
-
-		c.config.Logger.Info("Successfully reconnected to MongoDB",
-			"attempt", attempt,
-			"total_reconnects", c.reconnectCount)
-		return
-	}
-
-	c.config.Logger.Error("Failed to reconnect to MongoDB after all attempts",
-		"max_attempts", maxAttempts)
 }
 
 // HealthCheck performs a manual health check and returns detailed status
@@ -547,20 +528,6 @@ func (c *Client) HealthCheck() *HealthStatus {
 
 	status.Latency = time.Since(startTime)
 	return status
-}
-
-// GetReconnectCount returns the number of reconnections performed
-func (c *Client) GetReconnectCount() int64 {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	return c.reconnectCount
-}
-
-// GetLastReconnectTime returns the time of the last reconnection
-func (c *Client) GetLastReconnectTime() time.Time {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
-	return c.lastReconnect
 }
 
 // Name returns the connection name for this client instance
@@ -633,10 +600,6 @@ type ClientStats struct {
 	OperationsExecuted int64 `json:"operations_executed"`
 	OperationsFailed   int64 `json:"operations_failed"`
 
-	// Reconnection statistics
-	ReconnectAttempts int64      `json:"reconnect_attempts"`
-	LastReconnectTime *time.Time `json:"last_reconnect_time,omitempty"`
-
 	// Server information
 	ServerVersion  string `json:"server_version"`
 	ReplicaSetName string `json:"replica_set_name,omitempty"`
@@ -648,8 +611,7 @@ func (c *Client) Stats() *ClientStats {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
-	// Update connection statistics
-	c.updateConnectionStats()
+	// Connection statistics are now tracked in real-time via the PoolMonitor
 
 	// Get server information
 	serverVersion, replicaSetName, isMaster := c.getServerInfo()
@@ -662,16 +624,11 @@ func (c *Client) Stats() *ClientStats {
 		TotalConnections:   c.poolStats.totalConnections,
 		OperationsExecuted: c.poolStats.operationsExecuted,
 		OperationsFailed:   c.poolStats.operationsFailed,
-		ReconnectAttempts:  c.reconnectCount,
 		ServerVersion:      serverVersion,
 		ReplicaSetName:     replicaSetName,
 		IsMaster:           isMaster,
 	}
 	c.poolStats.RUnlock()
-
-	if !c.lastReconnect.IsZero() {
-		stats.LastReconnectTime = &c.lastReconnect
-	}
 
 	return stats
 }
@@ -690,22 +647,58 @@ func (c *Client) incrementFailureCount() {
 	c.poolStats.Unlock()
 }
 
-// updateConnectionStats estimates connection pool statistics based on configuration
-func (c *Client) updateConnectionStats() {
+// handlePoolEvent handles connection pool events for real-time metrics tracking.
+// This is called by the MongoDB driver's PoolMonitor for each pool event.
+// Connection states are tracked by ID to prevent metrics drift when connections
+// are closed while in different states (active vs idle).
+func (c *Client) handlePoolEvent(evt *event.PoolEvent) {
 	c.poolStats.Lock()
 	defer c.poolStats.Unlock()
 
-	// Estimate active connections based on configuration and current state
-	if c.isConnected {
-		// For a healthy connection, estimate based on pool configuration
-		// This is a reasonable approximation for most use cases
-		c.poolStats.totalConnections = int(c.config.MinPoolSize)
-		c.poolStats.activeConnections = 1 // At least one connection is active
-		c.poolStats.idleConnections = c.poolStats.totalConnections - c.poolStats.activeConnections
-	} else {
+	switch evt.Type {
+	case event.ConnectionCreated:
+		// A new connection was created in the pool - starts as idle
+		c.poolStats.connStates[evt.ConnectionID] = "idle"
+		c.poolStats.totalConnections++
+		c.poolStats.idleConnections++
+	case event.ConnectionClosed:
+		// A connection was closed - check its actual state to update correct counter
+		c.poolStats.totalConnections--
+		if state := c.poolStats.connStates[evt.ConnectionID]; state == "active" {
+			c.poolStats.activeConnections--
+		} else {
+			// Connection was idle (or unknown, which we treat as idle)
+			if c.poolStats.idleConnections > 0 {
+				c.poolStats.idleConnections--
+			}
+		}
+		delete(c.poolStats.connStates, evt.ConnectionID)
+	case event.ConnectionCheckedOut:
+		// A connection was checked out from the pool (now active)
+		c.poolStats.connStates[evt.ConnectionID] = "active"
+		c.poolStats.activeConnections++
+		if c.poolStats.idleConnections > 0 {
+			c.poolStats.idleConnections--
+		}
+	case event.ConnectionCheckedIn:
+		// A connection was checked back into the pool (now idle)
+		c.poolStats.connStates[evt.ConnectionID] = "idle"
+		if c.poolStats.activeConnections > 0 {
+			c.poolStats.activeConnections--
+		}
+		c.poolStats.idleConnections++
+	case event.ConnectionPoolCleared:
+		// Pool was cleared - reset all counters and state tracking
 		c.poolStats.totalConnections = 0
 		c.poolStats.activeConnections = 0
 		c.poolStats.idleConnections = 0
+		c.poolStats.connStates = make(map[int64]string)
+	case event.ConnectionPoolClosed:
+		// Pool was closed - reset all counters and state tracking
+		c.poolStats.totalConnections = 0
+		c.poolStats.activeConnections = 0
+		c.poolStats.idleConnections = 0
+		c.poolStats.connStates = make(map[int64]string)
 	}
 }
 

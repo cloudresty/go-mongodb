@@ -1,11 +1,11 @@
-module github.com/cloudresty/go-mongodb
+module github.com/cloudresty/go-mongodb/v2
 
 go 1.25.1
 
 require (
 	github.com/cloudresty/go-env v1.0.1
 	github.com/cloudresty/ulid v1.2.1
-	go.mongodb.org/mongo-driver/v2 v2.4.1
+	go.mongodb.org/mongo-driver/v2 v2.4.2
 )
 
 require (

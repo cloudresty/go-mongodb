@@ -1,3 +1,14 @@
+// go-mongodb v2 Example: ID Modes
+//
+// This example demonstrates ID generation modes in v2:
+// - IDModeULID: Default, uses ULID strings for document IDs
+// - IDModeObjectID: Uses MongoDB's native ObjectID
+// - IDModeCustom: Brings your own ID generation
+//
+// v2 Changes:
+// - Strict type validation: Structs with ObjectID fields are rejected in ULID mode
+// - mongoid.NewULID() panics on entropy failure (fast-fail prevents silent data corruption)
+// - Use NewULIDWithError() for explicit error handling
 package main
 
 import (
@@ -5,8 +16,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/mongoid"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/mongoid"
 )
 
 type User struct {

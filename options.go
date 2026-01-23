@@ -3,6 +3,8 @@ package mongodb
 import (
 	"crypto/tls"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/event"
 )
 
 // Option represents a functional option for configuring the MongoDB client
@@ -68,19 +70,55 @@ func WithMaxIdleTime(duration time.Duration) Option {
 	}
 }
 
-// WithTLS enables or disables TLS/SSL
+// WithTLS enables or disables TLS/SSL.
+// When enabled without a custom TLSConfig, uses the system's default TLS configuration.
+// For production use with MongoDB Atlas or other secure clusters, this should be enabled.
 func WithTLS(enabled bool) Option {
 	return func(c *Config) {
-		// Add TLS field to Config if needed
-		// For now, this is a placeholder
+		c.TLSEnabled = enabled
 	}
 }
 
-// WithTLSConfig sets custom TLS configuration
+// WithTLSConfig sets custom TLS configuration.
+// This takes precedence over WithTLS(true) and allows fine-grained control over:
+//   - Certificate verification (InsecureSkipVerify)
+//   - Client certificates (Certificates)
+//   - Root CA certificates (RootCAs)
+//   - Server name verification (ServerName)
+//   - TLS version constraints (MinVersion, MaxVersion)
 func WithTLSConfig(config *tls.Config) Option {
 	return func(c *Config) {
-		// Add TLSConfig field to Config if needed
-		// For now, this is a placeholder
+		c.TLSConfig = config
+	}
+}
+
+// WithMonitor sets a custom command monitor for APM integration.
+// This allows users to plug in monitoring tools like Datadog, OpenTelemetry, etc.
+// The monitor receives events for all database commands (find, insert, update, etc.)
+// including command start, success, and failure events with timing information.
+//
+// Example with OpenTelemetry:
+//
+//	monitor := otelmongo.NewMonitor()
+//	client, err := mongodb.NewClient(mongodb.WithMonitor(monitor))
+//
+// Example with custom logging:
+//
+//	monitor := &event.CommandMonitor{
+//	    Started: func(ctx context.Context, evt *event.CommandStartedEvent) {
+//	        log.Printf("Command %s started on %s", evt.CommandName, evt.DatabaseName)
+//	    },
+//	    Succeeded: func(ctx context.Context, evt *event.CommandSucceededEvent) {
+//	        log.Printf("Command %s succeeded in %v", evt.CommandName, evt.Duration)
+//	    },
+//	    Failed: func(ctx context.Context, evt *event.CommandFailedEvent) {
+//	        log.Printf("Command %s failed: %v", evt.CommandName, evt.Failure)
+//	    },
+//	}
+//	client, err := mongodb.NewClient(mongodb.WithMonitor(monitor))
+func WithMonitor(monitor *event.CommandMonitor) Option {
+	return func(c *Config) {
+		c.CommandMonitor = monitor
 	}
 }
 

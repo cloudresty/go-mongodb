@@ -215,6 +215,55 @@ type Logger interface {
 
 &nbsp;
 
+### Atomic Find-And-Modify Operations
+
+| Function | Description |
+| :--- | :--- |
+| `collection.FindOneAndUpdate(ctx, filter, update, opts...) *FindOneResult` | Atomically find, update, and return a document |
+| `collection.FindOneAndReplace(ctx, filter, replacement, opts...) *FindOneResult` | Atomically find, replace, and return a document |
+| `collection.FindOneAndDelete(ctx, filter, opts...) *FindOneResult` | Atomically find and delete a document, returning the deleted document |
+
+&nbsp;
+
+### FindOneAndUpdate Options
+
+| Type / Function | Description |
+| :--- | :--- |
+| `ReturnDocument` | Enum type: `ReturnBefore` (default) or `ReturnAfter` |
+| `FindOneAndUpdateOpts()` | Create new options with defaults |
+| `SetReturnDocument(rd ReturnDocument)` | Set whether to return document before or after update |
+| `SetUpsert(upsert bool)` | Set whether to insert if no document matches |
+| `SetSort(sort bson.D)` | Set sort order to determine which document to update |
+| `SetProjection(projection bson.D)` | Set which fields to return |
+
+&nbsp;
+
+### FindOneAndReplace Options
+
+| Type / Function | Description |
+| :--- | :--- |
+| `FindOneAndReplaceOpts()` | Create new options with defaults |
+| `SetReturnDocument(rd ReturnDocument)` | Set whether to return document before or after replacement |
+| `SetUpsert(upsert bool)` | Set whether to insert if no document matches |
+| `SetSort(sort bson.D)` | Set sort order to determine which document to replace |
+| `SetProjection(projection bson.D)` | Set which fields to return |
+
+&nbsp;
+
+### FindOneAndDelete Options
+
+| Type / Function | Description |
+| :--- | :--- |
+| `FindOneAndDeleteOpts()` | Create new options with defaults |
+| `SetSort(sort bson.D)` | Set sort order to determine which document to delete |
+| `SetProjection(projection bson.D)` | Set which fields to return |
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
 ## Fluent Query Builders
 
 &nbsp;

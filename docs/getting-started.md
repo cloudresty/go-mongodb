@@ -24,8 +24,10 @@ This guide will help you get up and running with the go-mongodb package quickly 
 
 ```bash
 go mod init your-project
-go get github.com/cloudresty/go-mongodb
+go get github.com/cloudresty/go-mongodb/v2
 ```
+
+> **Note**: This is v2. See [Migration Guide](migration-v2.md) if upgrading from v1.
 
 &nbsp;
 
@@ -62,7 +64,7 @@ import (
     "context"
     "log"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {
@@ -96,7 +98,7 @@ func main() {
 ### Index a Document
 
 ```go
-import "github.com/cloudresty/go-mongodb/mongoid"
+import "github.com/cloudresty/go-mongodb/v2/mongoid"
 
 // Define your document structure
 type User struct {
@@ -138,8 +140,8 @@ log.Printf("Document inserted with ID: %s", result.InsertedID)
 
 ```go
 import (
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
 )
 
 // Create a type-safe filter using the fluent filter builder
@@ -247,7 +249,7 @@ client, err := mongodb.NewClient(mongodb.WithConfig(config))
 The package includes a powerful, type-safe filter builder in a dedicated `filter` sub-package:
 
 ```go
-import "github.com/cloudresty/go-mongodb/filter"
+import "github.com/cloudresty/go-mongodb/v2/filter"
 
 // Build complex filters with a fluent API
 complexFilter := filter.Eq("status", "active").
@@ -275,7 +277,7 @@ arrayFilter := filter.In("tags", "golang", "mongodb", "database")
 Get strongly-typed updates without manual BSON construction:
 
 ```go
-import "github.com/cloudresty/go-mongodb/update"
+import "github.com/cloudresty/go-mongodb/v2/update"
 
 // Build complex updates with a fluent API
 complexUpdate := update.New().
@@ -316,7 +318,7 @@ export MONGODB_ID_MODE=ulid
 ```
 
 ```go
-import "github.com/cloudresty/go-mongodb/mongoid"
+import "github.com/cloudresty/go-mongodb/v2/mongoid"
 
 // ULID provides time-ordered, globally unique IDs
 user := User{
@@ -340,7 +342,7 @@ export MONGODB_ID_MODE=objectid
 ```
 
 ```go
-import "github.com/cloudresty/go-mongodb/mongoid"
+import "github.com/cloudresty/go-mongodb/v2/mongoid"
 
 // ObjectID is MongoDB's default - optimal for sharding
 user := User{
@@ -524,7 +526,7 @@ log.Printf("Inserted %d documents", len(result.InsertedIDs))
 ### Advanced Queries with Pipeline
 
 ```go
-import "github.com/cloudresty/go-mongodb/pipeline"
+import "github.com/cloudresty/go-mongodb/v2/pipeline"
 
 // Complex aggregation with pipeline builder
 p := pipeline.New().

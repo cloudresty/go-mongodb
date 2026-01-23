@@ -1,3 +1,7 @@
+// go-mongodb v2 Example: Transactions
+//
+// This example demonstrates MongoDB transactions with v2.
+// Transactions require a replica set or sharded cluster.
 package main
 
 import (
@@ -5,9 +9,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/filter"
-	"github.com/cloudresty/go-mongodb/update"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/filter"
+	"github.com/cloudresty/go-mongodb/v2/update"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readconcern"

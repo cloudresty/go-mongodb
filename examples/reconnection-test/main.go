@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/filter"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/filter"
 )
 
 // TestDoc represents a test document for reconnection testing

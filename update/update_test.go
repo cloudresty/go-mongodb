@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudresty/go-mongodb/filter"
+	"github.com/cloudresty/go-mongodb/v2/filter"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -308,7 +308,10 @@ func TestSetOnInsertStruct(t *testing.T) {
 		CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
-	u := New().SetOnInsertStruct(doc)
+	u, err := New().SetOnInsertStruct(doc)
+	if err != nil {
+		t.Fatalf("SetOnInsertStruct failed: %v", err)
+	}
 	result := u.Build()
 
 	if result["$setOnInsert"] == nil {
@@ -340,7 +343,10 @@ func TestSetStruct(t *testing.T) {
 		Count:  42,
 	}
 
-	u := New().SetStruct(doc)
+	u, err := New().SetStruct(doc)
+	if err != nil {
+		t.Fatalf("SetStruct failed: %v", err)
+	}
 	result := u.Build()
 
 	if result["$set"] == nil {

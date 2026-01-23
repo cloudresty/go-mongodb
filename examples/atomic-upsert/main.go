@@ -1,3 +1,9 @@
+// go-mongodb v2 Example: Atomic Upsert
+//
+// This example demonstrates atomic upsert operations with v2:
+// - FindOneAndUpdate with ReturnDocument option
+// - $setOnInsert for first-insert-only fields
+// - Atomic counter patterns
 package main
 
 import (
@@ -6,9 +12,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/filter"
-	"github.com/cloudresty/go-mongodb/update"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/filter"
+	"github.com/cloudresty/go-mongodb/v2/update"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
@@ -100,7 +106,10 @@ func main() {
 
 	// Method 3: Using SetOnInsertStruct (NEW)
 	fmt.Println("Method 3: Using SetOnInsertStruct (NEW)")
-	updateBuilder3 := update.New().SetOnInsertStruct(event)
+	updateBuilder3, err := update.New().SetOnInsertStruct(event)
+	if err != nil {
+		log.Fatalf("Method 3 builder creation failed: %v", err)
+	}
 	result3, err := collection.UpdateOne(ctx, filterBuilder, updateBuilder3, opts)
 	if err != nil {
 		log.Printf("Method 3 failed: %v", err)

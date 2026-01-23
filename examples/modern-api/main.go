@@ -1,3 +1,14 @@
+// go-mongodb v2 Example: Modern API
+//
+// This example demonstrates the v2 API with:
+// - Fluent filter and update builders
+// - ULID-based document IDs
+// - Type-safe operations
+//
+// v2 Changes:
+// - Use col.FindByID(ctx, id) instead of mongoid.FindByULID()
+// - mongoid.NewULID() panics on entropy failure (use NewULIDWithError() for explicit handling)
+// - Strict type validation rejects incompatible ID field types in ULID mode
 package main
 
 import (
@@ -5,10 +16,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/cloudresty/go-mongodb"
-	"github.com/cloudresty/go-mongodb/filter"
-	"github.com/cloudresty/go-mongodb/mongoid"
-	"github.com/cloudresty/go-mongodb/update"
+	"github.com/cloudresty/go-mongodb/v2"
+	"github.com/cloudresty/go-mongodb/v2/filter"
+	"github.com/cloudresty/go-mongodb/v2/mongoid"
+	"github.com/cloudresty/go-mongodb/v2/update"
 )
 
 // User represents a user document

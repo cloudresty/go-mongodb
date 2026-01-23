@@ -1,7 +1,7 @@
 package pipeline
 
 import (
-	"github.com/cloudresty/go-mongodb/filter"
+	"github.com/cloudresty/go-mongodb/v2/filter"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 

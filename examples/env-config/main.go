@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/cloudresty/go-mongodb"
+	"github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {

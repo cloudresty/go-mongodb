@@ -42,7 +42,7 @@
 //
 //	import (
 //	    "context"
-//	    "github.com/cloudresty/go-mongodb"
+//	    "github.com/cloudresty/go-mongodb/v2"
 //	)
 //
 //	func main() {
@@ -162,7 +162,6 @@ func Quick(database ...string) (*Client, error) {
 
 	// Disable advanced features for quick connections
 	config.HealthCheckEnabled = false
-	config.ReconnectEnabled = false
 
 	return NewClientWithConfig(config)
 }

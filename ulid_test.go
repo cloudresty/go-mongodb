@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudresty/go-mongodb/filter"
+	"github.com/cloudresty/go-mongodb/v2/filter"
 	"github.com/cloudresty/ulid"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -100,7 +100,7 @@ func TestULIDUniqueness(t *testing.T) {
 	cleanupTestCollection(t, client, "test_ulid_uniqueness")
 
 	documentULIDs := make(map[string]bool)
-	var insertedIDs []string
+	var insertedIDs []any
 
 	// Generate 10 documents and verify all ULIDs are unique
 	for i := 0; i < 10; i++ {
@@ -171,7 +171,7 @@ func TestULIDTemporalOrdering(t *testing.T) {
 
 	const numDocuments = 5
 	ulids := make([]string, numDocuments)
-	var insertedIDs []string
+	var insertedIDs []any
 
 	// Generate documents with small delays to ensure temporal ordering
 	for i := 0; i < numDocuments; i++ {
@@ -313,7 +313,10 @@ func TestULIDDocumentFormatting(t *testing.T) {
 	}
 
 	// Verify ULID is properly formatted
-	ulidID := result.InsertedID
+	ulidID, ok := result.InsertedID.(string)
+	if !ok {
+		t.Error("Expected InsertedID to be a string ULID")
+	}
 	if ulidID == "" {
 		t.Error("Expected non-empty ULID")
 	}

@@ -707,3 +707,397 @@ func TestDirectConnectionEnvironmentVariableWithAuth(t *testing.T) {
 		t.Errorf("Expected URI to contain credentials, got: %s", actualURI)
 	}
 }
+
+// FindOneAnd* tests
+
+func TestFindOneAndUpdate(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client, err := NewClient(FromEnv())
+	if err != nil {
+		t.Skipf("Could not create client: %v", err)
+	}
+	defer func() {
+		time.Sleep(10 * time.Millisecond)
+		_ = client.Close()
+	}()
+
+	collection := client.Collection("test_find_one_and_update")
+
+	// Clean up before test
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _ = collection.DeleteMany(ctx, nil)
+
+	// Insert test document
+	testDoc := bson.M{
+		"_id":   "user_001",
+		"name":  "Alice",
+		"score": 100,
+	}
+	_, err = collection.InsertOne(ctx, testDoc)
+	if err != nil {
+		t.Fatalf("Failed to insert test document: %v", err)
+	}
+
+	// Test FindOneAndUpdate with ReturnAfter
+	opts := FindOneAndUpdateOpts().SetReturnDocument(ReturnAfter)
+
+	var result bson.M
+	err = collection.FindOneAndUpdate(
+		ctx,
+		filter.Eq("_id", "user_001"),
+		update.Inc("score", 10),
+		opts,
+	).Decode(&result)
+
+	if err != nil {
+		t.Fatalf("FindOneAndUpdate failed: %v", err)
+	}
+
+	// Verify the returned document has the updated score
+	score, ok := result["score"].(int32)
+	if !ok {
+		// Try int64
+		if score64, ok := result["score"].(int64); ok {
+			score = int32(score64)
+		} else {
+			t.Fatalf("Score is not numeric, got: %T", result["score"])
+		}
+	}
+	if score != 110 {
+		t.Errorf("Expected score to be 110, got %d", score)
+	}
+
+	// Cleanup
+	_, _ = collection.DeleteMany(ctx, nil)
+}
+
+func TestFindOneAndUpdateAtomicCounter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client, err := NewClient(FromEnv())
+	if err != nil {
+		t.Skipf("Could not create client: %v", err)
+	}
+	defer func() {
+		time.Sleep(10 * time.Millisecond)
+		_ = client.Close()
+	}()
+
+	collection := client.Collection("test_atomic_counter")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Clean up before test
+	_, _ = collection.DeleteMany(ctx, nil)
+
+	// Test atomic counter with upsert (creates document if not exists)
+	opts := FindOneAndUpdateOpts().
+		SetReturnDocument(ReturnAfter).
+		SetUpsert(true)
+
+	type Counter struct {
+		ID  string `bson:"_id"`
+		Seq int    `bson:"seq"`
+	}
+
+	// First call - should create the counter document
+	var counter1 Counter
+	err = collection.FindOneAndUpdate(
+		ctx,
+		filter.Eq("_id", "order_sequence"),
+		update.Inc("seq", 1),
+		opts,
+	).Decode(&counter1)
+
+	if err != nil {
+		t.Fatalf("First FindOneAndUpdate failed: %v", err)
+	}
+
+	if counter1.Seq != 1 {
+		t.Errorf("Expected first sequence to be 1, got %d", counter1.Seq)
+	}
+
+	// Second call - should increment existing
+	var counter2 Counter
+	err = collection.FindOneAndUpdate(
+		ctx,
+		filter.Eq("_id", "order_sequence"),
+		update.Inc("seq", 1),
+		opts,
+	).Decode(&counter2)
+
+	if err != nil {
+		t.Fatalf("Second FindOneAndUpdate failed: %v", err)
+	}
+
+	if counter2.Seq != 2 {
+		t.Errorf("Expected second sequence to be 2, got %d", counter2.Seq)
+	}
+
+	// Cleanup
+	_, _ = collection.DeleteMany(ctx, nil)
+}
+
+func TestFindOneAndUpdateReturnBefore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client, err := NewClient(FromEnv())
+	if err != nil {
+		t.Skipf("Could not create client: %v", err)
+	}
+	defer func() {
+		time.Sleep(10 * time.Millisecond)
+		_ = client.Close()
+	}()
+
+	collection := client.Collection("test_find_one_and_update_before")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _ = collection.DeleteMany(ctx, nil)
+
+	// Insert test document
+	_, err = collection.InsertOne(ctx, bson.M{
+		"_id":   "doc_001",
+		"value": 50,
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert test document: %v", err)
+	}
+
+	// Test with ReturnBefore (default)
+	opts := FindOneAndUpdateOpts().SetReturnDocument(ReturnBefore)
+
+	var result bson.M
+	err = collection.FindOneAndUpdate(
+		ctx,
+		filter.Eq("_id", "doc_001"),
+		update.Set("value", 100),
+		opts,
+	).Decode(&result)
+
+	if err != nil {
+		t.Fatalf("FindOneAndUpdate failed: %v", err)
+	}
+
+	// Should return the original value (before update)
+	value, ok := result["value"].(int32)
+	if !ok {
+		if value64, ok := result["value"].(int64); ok {
+			value = int32(value64)
+		} else {
+			t.Fatalf("Value is not numeric, got: %T", result["value"])
+		}
+	}
+	if value != 50 {
+		t.Errorf("Expected original value 50, got %d", value)
+	}
+
+	// Cleanup
+	_, _ = collection.DeleteMany(ctx, nil)
+}
+
+func TestFindOneAndReplace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client, err := NewClient(FromEnv())
+	if err != nil {
+		t.Skipf("Could not create client: %v", err)
+	}
+	defer func() {
+		time.Sleep(10 * time.Millisecond)
+		_ = client.Close()
+	}()
+
+	collection := client.Collection("test_find_one_and_replace")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _ = collection.DeleteMany(ctx, nil)
+
+	// Insert test document
+	_, err = collection.InsertOne(ctx, bson.M{
+		"_id":    "product_001",
+		"name":   "Old Product",
+		"price":  99.99,
+		"status": "draft",
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert test document: %v", err)
+	}
+
+	// Replace the document
+	opts := FindOneAndReplaceOpts().SetReturnDocument(ReturnAfter)
+
+	replacement := bson.M{
+		"_id":    "product_001",
+		"name":   "New Product",
+		"price":  149.99,
+		"status": "published",
+	}
+
+	var result bson.M
+	err = collection.FindOneAndReplace(
+		ctx,
+		filter.Eq("_id", "product_001"),
+		replacement,
+		opts,
+	).Decode(&result)
+
+	if err != nil {
+		t.Fatalf("FindOneAndReplace failed: %v", err)
+	}
+
+	if result["name"] != "New Product" {
+		t.Errorf("Expected name 'New Product', got %v", result["name"])
+	}
+	if result["status"] != "published" {
+		t.Errorf("Expected status 'published', got %v", result["status"])
+	}
+
+	// Cleanup
+	_, _ = collection.DeleteMany(ctx, nil)
+}
+
+func TestFindOneAndDelete(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client, err := NewClient(FromEnv())
+	if err != nil {
+		t.Skipf("Could not create client: %v", err)
+	}
+	defer func() {
+		time.Sleep(10 * time.Millisecond)
+		_ = client.Close()
+	}()
+
+	collection := client.Collection("test_find_one_and_delete")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _ = collection.DeleteMany(ctx, nil)
+
+	// Insert test documents (simulating a queue)
+	_, err = collection.InsertOne(ctx, bson.M{
+		"_id":      "job_001",
+		"priority": 1,
+		"task":     "Send email",
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert first document: %v", err)
+	}
+
+	_, err = collection.InsertOne(ctx, bson.M{
+		"_id":      "job_002",
+		"priority": 2,
+		"task":     "Process payment",
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert second document: %v", err)
+	}
+
+	// Pop the highest priority job (lowest priority number)
+	opts := FindOneAndDeleteOpts().SetSort(bson.D{{Key: "priority", Value: 1}})
+
+	var job bson.M
+	err = collection.FindOneAndDelete(ctx, nil, opts).Decode(&job)
+
+	if err != nil {
+		t.Fatalf("FindOneAndDelete failed: %v", err)
+	}
+
+	if job["_id"] != "job_001" {
+		t.Errorf("Expected job_001 (highest priority), got %v", job["_id"])
+	}
+	if job["task"] != "Send email" {
+		t.Errorf("Expected task 'Send email', got %v", job["task"])
+	}
+
+	// Verify the document was actually deleted
+	count, err := collection.CountDocuments(ctx, nil)
+	if err != nil {
+		t.Fatalf("CountDocuments failed: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected 1 document remaining, got %d", count)
+	}
+
+	// Cleanup
+	_, _ = collection.DeleteMany(ctx, nil)
+}
+
+func TestFindOneAndUpdateWithSort(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	client, err := NewClient(FromEnv())
+	if err != nil {
+		t.Skipf("Could not create client: %v", err)
+	}
+	defer func() {
+		time.Sleep(10 * time.Millisecond)
+		_ = client.Close()
+	}()
+
+	collection := client.Collection("test_find_one_and_update_sort")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _ = collection.DeleteMany(ctx, nil)
+
+	// Insert multiple documents
+	_, err = collection.InsertOne(ctx, bson.M{"_id": "task_a", "status": "pending", "priority": 3})
+	if err != nil {
+		t.Fatalf("Failed to insert: %v", err)
+	}
+	_, err = collection.InsertOne(ctx, bson.M{"_id": "task_b", "status": "pending", "priority": 1})
+	if err != nil {
+		t.Fatalf("Failed to insert: %v", err)
+	}
+	_, err = collection.InsertOne(ctx, bson.M{"_id": "task_c", "status": "pending", "priority": 2})
+	if err != nil {
+		t.Fatalf("Failed to insert: %v", err)
+	}
+
+	// Claim the highest priority pending task (sort by priority ascending)
+	opts := FindOneAndUpdateOpts().
+		SetReturnDocument(ReturnAfter).
+		SetSort(bson.D{{Key: "priority", Value: 1}})
+
+	var task bson.M
+	err = collection.FindOneAndUpdate(
+		ctx,
+		filter.Eq("status", "pending"),
+		update.Set("status", "claimed"),
+		opts,
+	).Decode(&task)
+
+	if err != nil {
+		t.Fatalf("FindOneAndUpdate failed: %v", err)
+	}
+
+	// Should have claimed task_b (priority 1)
+	if task["_id"] != "task_b" {
+		t.Errorf("Expected task_b, got %v", task["_id"])
+	}
+	if task["status"] != "claimed" {
+		t.Errorf("Expected status 'claimed', got %v", task["status"])
+	}
+
+	// Cleanup
+	_, _ = collection.DeleteMany(ctx, nil)
+}

@@ -1359,6 +1359,227 @@ func main() {
 
 &nbsp;
 
+## Atomic Find-And-Modify Operations
+
+The library provides atomic find-and-modify operations that are essential for:
+
+- **Atomic counters**: Increment a value and return the new value in one operation
+- **Reservation systems**: Mark a document as claimed and return it atomically
+- **Queue processing**: Pop the next item atomically without race conditions
+
+&nbsp;
+
+### Atomic Counter (FindOneAndUpdate)
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/filter"
+    "github.com/cloudresty/go-mongodb/update"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("counters")
+    ctx := context.Background()
+
+    // Atomically increment and return the new value
+    opts := mongodb.FindOneAndUpdateOpts().
+        SetReturnDocument(mongodb.ReturnAfter).
+        SetUpsert(true)
+
+    var counter struct {
+        ID  string `bson:"_id"`
+        Seq int    `bson:"seq"`
+    }
+
+    err = collection.FindOneAndUpdate(
+        ctx,
+        filter.Eq("_id", "order_sequence"),
+        update.Inc("seq", 1),
+        opts,
+    ).Decode(&counter)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Next order number: %d\n", counter.Seq)
+}
+```
+
+&nbsp;
+
+### Reservation System (FindOneAndUpdate with Sort)
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/filter"
+    "github.com/cloudresty/go-mongodb/update"
+    "go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("tasks")
+    ctx := context.Background()
+
+    // Atomically claim the highest priority unclaimed task
+    opts := mongodb.FindOneAndUpdateOpts().
+        SetReturnDocument(mongodb.ReturnAfter).
+        SetSort(bson.D{{Key: "priority", Value: 1}}) // Lower number = higher priority
+
+    var task struct {
+        ID       string `bson:"_id"`
+        Task     string `bson:"task"`
+        Priority int    `bson:"priority"`
+        Status   string `bson:"status"`
+    }
+
+    err = collection.FindOneAndUpdate(
+        ctx,
+        filter.Eq("status", "pending"),
+        update.Set("status", "claimed"),
+        opts,
+    ).Decode(&task)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Claimed task: %s (priority %d)\n", task.Task, task.Priority)
+}
+```
+
+&nbsp;
+
+### Queue Processing (FindOneAndDelete)
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/cloudresty/go-mongodb"
+    "go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("job_queue")
+    ctx := context.Background()
+
+    // Atomically pop the next job from the queue (FIFO)
+    opts := mongodb.FindOneAndDeleteOpts().
+        SetSort(bson.D{{Key: "created_at", Value: 1}}) // Oldest first
+
+    var job struct {
+        ID        string `bson:"_id"`
+        Task      string `bson:"task"`
+        CreatedAt string `bson:"created_at"`
+    }
+
+    err = collection.FindOneAndDelete(ctx, nil, opts).Decode(&job)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Processing job: %s\n", job.Task)
+}
+```
+
+&nbsp;
+
+### Document Replacement (FindOneAndReplace)
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/filter"
+    "go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func main() {
+    client, err := mongodb.NewClient(mongodb.FromEnv())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer client.Close()
+
+    collection := client.Collection("products")
+    ctx := context.Background()
+
+    // Atomically replace a draft with published version
+    opts := mongodb.FindOneAndReplaceOpts().
+        SetReturnDocument(mongodb.ReturnAfter)
+
+    replacement := bson.M{
+        "_id":    "product_001",
+        "name":   "Premium Widget",
+        "price":  149.99,
+        "status": "published",
+    }
+
+    var product bson.M
+    err = collection.FindOneAndReplace(
+        ctx,
+        filter.Eq("_id", "product_001"),
+        replacement,
+        opts,
+    ).Decode(&product)
+
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    fmt.Printf("Published product: %s at $%.2f\n", product["name"], product["price"])
+}
+```
+
+&nbsp;
+
+🔝 [back to top](#examples)
+
+&nbsp;
+
 ## Index Management
 
 The library provides a self-contained index management system with helper functions that eliminate the need to import mongo-driver directly for index operations.

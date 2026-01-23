@@ -967,6 +967,284 @@ func (col *Collection) UpsertByFieldWithOptions(ctx context.Context, field strin
 	return col.UpdateOne(ctx, filterBuilder, updateBuilder, opts)
 }
 
+// ReturnDocument specifies when to capture the document for FindOneAnd* operations.
+type ReturnDocument int
+
+const (
+	// ReturnBefore returns the document before the modification (default)
+	ReturnBefore ReturnDocument = iota
+	// ReturnAfter returns the document after the modification
+	ReturnAfter
+)
+
+// FindOneAndUpdateOptions configures FindOneAndUpdate operations.
+type FindOneAndUpdateOptions struct {
+	// ReturnDocument specifies whether to return the document before or after the update.
+	// Use ReturnBefore (default) or ReturnAfter.
+	ReturnDocument ReturnDocument
+
+	// Upsert, when true, creates a new document if no document matches the filter.
+	Upsert bool
+
+	// Sort determines which document to update if multiple match.
+	Sort bson.D
+
+	// Projection limits the fields returned in the document.
+	Projection bson.D
+}
+
+// FindOneAndUpdateOpts creates a new FindOneAndUpdateOptions with default values.
+func FindOneAndUpdateOpts() *FindOneAndUpdateOptions {
+	return &FindOneAndUpdateOptions{}
+}
+
+// SetReturnDocument sets the return document option.
+func (o *FindOneAndUpdateOptions) SetReturnDocument(rd ReturnDocument) *FindOneAndUpdateOptions {
+	o.ReturnDocument = rd
+	return o
+}
+
+// SetUpsert sets the upsert option.
+func (o *FindOneAndUpdateOptions) SetUpsert(upsert bool) *FindOneAndUpdateOptions {
+	o.Upsert = upsert
+	return o
+}
+
+// SetSort sets the sort order for determining which document to update.
+func (o *FindOneAndUpdateOptions) SetSort(sort bson.D) *FindOneAndUpdateOptions {
+	o.Sort = sort
+	return o
+}
+
+// SetProjection sets the fields to return in the document.
+func (o *FindOneAndUpdateOptions) SetProjection(projection bson.D) *FindOneAndUpdateOptions {
+	o.Projection = projection
+	return o
+}
+
+// FindOneAndReplaceOptions configures FindOneAndReplace operations.
+type FindOneAndReplaceOptions struct {
+	// ReturnDocument specifies whether to return the document before or after the replacement.
+	ReturnDocument ReturnDocument
+
+	// Upsert, when true, creates a new document if no document matches the filter.
+	Upsert bool
+
+	// Sort determines which document to replace if multiple match.
+	Sort bson.D
+
+	// Projection limits the fields returned in the document.
+	Projection bson.D
+}
+
+// FindOneAndReplaceOpts creates a new FindOneAndReplaceOptions with default values.
+func FindOneAndReplaceOpts() *FindOneAndReplaceOptions {
+	return &FindOneAndReplaceOptions{}
+}
+
+// SetReturnDocument sets the return document option.
+func (o *FindOneAndReplaceOptions) SetReturnDocument(rd ReturnDocument) *FindOneAndReplaceOptions {
+	o.ReturnDocument = rd
+	return o
+}
+
+// SetUpsert sets the upsert option.
+func (o *FindOneAndReplaceOptions) SetUpsert(upsert bool) *FindOneAndReplaceOptions {
+	o.Upsert = upsert
+	return o
+}
+
+// SetSort sets the sort order for determining which document to replace.
+func (o *FindOneAndReplaceOptions) SetSort(sort bson.D) *FindOneAndReplaceOptions {
+	o.Sort = sort
+	return o
+}
+
+// SetProjection sets the fields to return in the document.
+func (o *FindOneAndReplaceOptions) SetProjection(projection bson.D) *FindOneAndReplaceOptions {
+	o.Projection = projection
+	return o
+}
+
+// FindOneAndDeleteOptions configures FindOneAndDelete operations.
+type FindOneAndDeleteOptions struct {
+	// Sort determines which document to delete if multiple match.
+	Sort bson.D
+
+	// Projection limits the fields returned in the document.
+	Projection bson.D
+}
+
+// FindOneAndDeleteOpts creates a new FindOneAndDeleteOptions with default values.
+func FindOneAndDeleteOpts() *FindOneAndDeleteOptions {
+	return &FindOneAndDeleteOptions{}
+}
+
+// SetSort sets the sort order for determining which document to delete.
+func (o *FindOneAndDeleteOptions) SetSort(sort bson.D) *FindOneAndDeleteOptions {
+	o.Sort = sort
+	return o
+}
+
+// SetProjection sets the fields to return in the document.
+func (o *FindOneAndDeleteOptions) SetProjection(projection bson.D) *FindOneAndDeleteOptions {
+	o.Projection = projection
+	return o
+}
+
+// FindOneAndUpdate atomically finds a document, applies an update, and returns
+// either the original or the modified document based on options.
+// This is essential for atomic operations like counters, reservations, and queue processing.
+func (col *Collection) FindOneAndUpdate(ctx context.Context, filterBuilder *filter.Builder, updateBuilder *update.Builder, opts ...*FindOneAndUpdateOptions) *FindOneResult {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Build filter document
+	filterDoc := bson.M{}
+	if filterBuilder != nil {
+		filterDoc = filterBuilder.Build()
+	}
+
+	// Build update document
+	updateDoc := bson.M{}
+	if updateBuilder != nil {
+		updateDoc = updateBuilder.Build()
+	}
+
+	// Convert our options to mongo driver options
+	driverOpts := options.FindOneAndUpdate()
+
+	if len(opts) > 0 && opts[0] != nil {
+		opt := opts[0]
+
+		if opt.ReturnDocument == ReturnAfter {
+			driverOpts.SetReturnDocument(options.After)
+		} else {
+			driverOpts.SetReturnDocument(options.Before)
+		}
+
+		if opt.Upsert {
+			driverOpts.SetUpsert(true)
+		}
+
+		if len(opt.Sort) > 0 {
+			driverOpts.SetSort(opt.Sort)
+		}
+
+		if len(opt.Projection) > 0 {
+			driverOpts.SetProjection(opt.Projection)
+		}
+	}
+
+	col.client.config.Logger.Debug("FindOneAndUpdate",
+		"collection", col.name)
+
+	result := col.collection.FindOneAndUpdate(ctx, filterDoc, updateDoc, driverOpts)
+
+	col.client.incrementOperationCount()
+
+	return &FindOneResult{
+		result: result,
+	}
+}
+
+// FindOneAndReplace atomically finds a document, replaces it, and returns
+// either the original or the replacement document based on options.
+func (col *Collection) FindOneAndReplace(ctx context.Context, filterBuilder *filter.Builder, replacement any, opts ...*FindOneAndReplaceOptions) *FindOneResult {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Build filter document
+	filterDoc := bson.M{}
+	if filterBuilder != nil {
+		filterDoc = filterBuilder.Build()
+	}
+
+	// Convert our options to mongo driver options
+	driverOpts := options.FindOneAndReplace()
+
+	if len(opts) > 0 && opts[0] != nil {
+		opt := opts[0]
+
+		if opt.ReturnDocument == ReturnAfter {
+			driverOpts.SetReturnDocument(options.After)
+		} else {
+			driverOpts.SetReturnDocument(options.Before)
+		}
+
+		if opt.Upsert {
+			driverOpts.SetUpsert(true)
+		}
+
+		if len(opt.Sort) > 0 {
+			driverOpts.SetSort(opt.Sort)
+		}
+
+		if len(opt.Projection) > 0 {
+			driverOpts.SetProjection(opt.Projection)
+		}
+	}
+
+	col.client.config.Logger.Debug("FindOneAndReplace",
+		"collection", col.name)
+
+	result := col.collection.FindOneAndReplace(ctx, filterDoc, replacement, driverOpts)
+
+	col.client.incrementOperationCount()
+
+	return &FindOneResult{
+		result: result,
+	}
+}
+
+// FindOneAndDelete atomically finds a document and deletes it, returning the deleted document.
+// This is useful for queue-like operations where you need to atomically claim and remove an item.
+func (col *Collection) FindOneAndDelete(ctx context.Context, filterBuilder *filter.Builder, opts ...*FindOneAndDeleteOptions) *FindOneResult {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	// Build filter document
+	filterDoc := bson.M{}
+	if filterBuilder != nil {
+		filterDoc = filterBuilder.Build()
+	}
+
+	// Convert our options to mongo driver options
+	driverOpts := options.FindOneAndDelete()
+
+	if len(opts) > 0 && opts[0] != nil {
+		opt := opts[0]
+
+		if len(opt.Sort) > 0 {
+			driverOpts.SetSort(opt.Sort)
+		}
+
+		if len(opt.Projection) > 0 {
+			driverOpts.SetProjection(opt.Projection)
+		}
+	}
+
+	col.client.config.Logger.Debug("FindOneAndDelete",
+		"collection", col.name)
+
+	result := col.collection.FindOneAndDelete(ctx, filterDoc, driverOpts)
+
+	col.client.incrementOperationCount()
+
+	return &FindOneResult{
+		result: result,
+	}
+}
+
 // Helper functions
 
 // Convenience methods using our BSON helpers

@@ -5,11 +5,10 @@ go 1.25.1
 require (
 	github.com/cloudresty/go-env v1.0.1
 	github.com/cloudresty/ulid v1.2.1
-	go.mongodb.org/mongo-driver/v2 v2.4.2
+	go.mongodb.org/mongo-driver/v2 v2.5.0
 )
 
 require (
-	github.com/golang/snappy v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.3 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.2.0 // indirect

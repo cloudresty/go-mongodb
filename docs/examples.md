@@ -13,6 +13,7 @@ This document provides comprehensive examples demonstrating different features o
 The package includes several examples in the `examples/` directory:
 
 - **`basic-client/`** - Basic MongoDB client setup using environment variables
+- **`bulk-write/`** - Enterprise-grade `BulkWrite` with ULID injection, mixed operations, and result inspection
 - **`custom-logger-emit/`** - Custom logging integration with the emit library
 - **`env-config/`** - Environment variable configuration examples
 - **`transactions/`** - Multi-document transactions
@@ -39,7 +40,7 @@ import (
     "log"
     "os"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {
@@ -77,7 +78,7 @@ import (
     "time"
 
     "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 // EmitAdapter adapts the emit logger to satisfy the mongodb.Logger interface
@@ -169,9 +170,9 @@ import (
     "os"
 
     "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
 )
 
 type User struct {
@@ -262,7 +263,7 @@ The package includes a powerful, type-safe filter builder that supports fluent m
 #### Filter Method-Based Approach (Recommended)
 
 ```go
-import "github.com/cloudresty/go-mongodb/filter"
+import "github.com/cloudresty/go-mongodb/v2/filter"
 
 // Build complex filters using fluent methods
 complexFilter := filter.Eq("status", "active").
@@ -309,7 +310,7 @@ Create complex update operations using the fluent update builder:
 #### Update Method-Based Approach (Recommended)
 
 ```go
-import "github.com/cloudresty/go-mongodb/update"
+import "github.com/cloudresty/go-mongodb/v2/update"
 
 // Build complex updates using fluent methods
 updateOp := update.Set("name", "John Doe").
@@ -388,7 +389,7 @@ import (
     "os"
 
     "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {
@@ -454,7 +455,7 @@ import (
     "time"
 
     "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
     "go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
@@ -500,9 +501,9 @@ import (
     "context"
     "time"
 
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
     "go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
@@ -695,9 +696,9 @@ import (
     "go.mongodb.org/mongo-driver/v2/mongo/readconcern"
     "go.mongodb.org/mongo-driver/v2/mongo/writeconcern"
     "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
 )
 
 type Order struct {
@@ -781,19 +782,22 @@ func main() {
 
 ### Bulk Operations
 
+`BulkWrite` executes a mixed batch of insert, update, replace, and delete operations in a **single round-trip** to MongoDB. When `IDModeULID` is active (the default), ULID IDs are automatically injected into every `InsertOneModel` document — the same zero-allocation logic used by `InsertOne` / `InsertMany`.
+
 ```go
 package main
 
 import (
     "context"
     "fmt"
-    "os"
+    "log"
 
     "go.mongodb.org/mongo-driver/v2/mongo"
-    "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "go.mongodb.org/mongo-driver/v2/mongo/options"
+
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
 )
 
 type BulkUser struct {
@@ -803,64 +807,71 @@ type BulkUser struct {
 }
 
 func main() {
-    client, err := mongodb.NewClient()
+    client, err := mongodb.NewClient(mongodb.FromEnv())
     if err != nil {
-        emit.Error.StructuredFields("Failed to create client",
-            emit.ZString("error", err.Error()))
-        os.Exit(1)
+        log.Fatal("Failed to create client:", err)
     }
     defer client.Close()
 
     coll := client.Database("myapp").Collection("users")
+    ctx := context.Background()
 
-    // Bulk insert (ULIDs will be auto-generated)
-    var documents []any
-    for i := 0; i < 1000; i++ {
-        documents = append(documents, BulkUser{
-            Name:   fmt.Sprintf("User %d", i),
-            Email:  fmt.Sprintf("user%d@example.com", i),
-            Active: true,
-        })
-    }
-
-    insertResult, err := coll.InsertMany(context.Background(), documents)
-    if err != nil {
-        emit.Error.StructuredFields("Bulk insert failed",
-            emit.ZString("error", err.Error()))
-        os.Exit(1)
-    }
-
-    // Bulk write operations
+    // Build a mixed batch of operations.
+    // InsertOneModel documents will receive ULIDs automatically.
     var operations []mongo.WriteModel
 
-    // Add update operations using type-safe builders
-    for i := 0; i < 100; i++ {
-        filterBuilder := filter.Eq("name", fmt.Sprintf("User %d", i))
-        updateBuilder := update.Set("active", false)
-        operations = append(operations, mongo.NewUpdateOneModel().
-            SetFilter(filterBuilder).SetUpdate(updateBuilder))
+    // 1. Insert new users (ULIDs generated automatically by the library)
+    for i := 0; i < 10; i++ {
+        operations = append(operations, mongo.NewInsertOneModel().SetDocument(BulkUser{
+            Name:   fmt.Sprintf("New User %d", i),
+            Email:  fmt.Sprintf("newuser%d@example.com", i),
+            Active: true,
+        }))
     }
 
-    // Add delete operations using type-safe builders
-    for i := 900; i < 1000; i++ {
-        filterBuilder := filter.Eq("name", fmt.Sprintf("User %d", i))
-        operations = append(operations, mongo.NewDeleteOneModel().
-            SetFilter(filterBuilder))
+    // 2. Update existing users using the type-safe filter and update builders
+    for i := 0; i < 5; i++ {
+        operations = append(operations,
+            mongo.NewUpdateOneModel().
+                SetFilter(filter.Eq("email", fmt.Sprintf("existing%d@example.com", i))).
+                SetUpdate(update.Set("active", false).Set("status", "deactivated")))
     }
 
-    bulkResult, err := coll.BulkWrite(context.Background(), operations)
+    // 3. Upsert a configuration document (insert if missing, skip if exists)
+    operations = append(operations,
+        mongo.NewUpdateOneModel().
+            SetFilter(filter.Eq("name", "config-v1")).
+            SetUpdate(update.Set("version", 1).Set("enabled", true)).
+            SetUpsert(true))
+
+    // 4. Delete stale records
+    operations = append(operations,
+        mongo.NewDeleteManyModel().
+            SetFilter(filter.Eq("active", false).And(filter.Eq("status", "archived"))))
+
+    // Execute all operations in one round-trip.
+    // Use options.BulkWrite().SetOrdered(false) for unordered execution (higher throughput).
+    result, err := coll.BulkWrite(ctx, operations,
+        options.BulkWrite().SetOrdered(true))
     if err != nil {
-        emit.Error.StructuredFields("Bulk write failed",
-            emit.ZString("error", err.Error()))
-        os.Exit(1)
+        log.Fatal("BulkWrite failed:", err)
     }
 
-    emit.Info.StructuredFields("Bulk operations completed",
-        emit.ZInt("inserted", len(insertResult.InsertedIDs)),
-        emit.ZInt64("updated", bulkResult.ModifiedCount),
-        emit.ZInt64("deleted", bulkResult.DeletedCount))
+    fmt.Printf("Inserted:  %d\n", result.InsertedCount)
+    fmt.Printf("Matched:   %d\n", result.MatchedCount)
+    fmt.Printf("Modified:  %d\n", result.ModifiedCount)
+    fmt.Printf("Deleted:   %d\n", result.DeletedCount)
+    fmt.Printf("Upserted:  %d\n", result.UpsertedCount)
+
+    // InsertedIDs contains the library-generated ULIDs keyed by the
+    // model's position in the operations slice.
+    for idx, id := range result.InsertedIDs {
+        fmt.Printf("  model[%d] → %v\n", idx, id)
+    }
 }
 ```
+
+See the [`examples/bulk-write/`](../examples/bulk-write/) directory for a full runnable version.
 
 &nbsp;
 
@@ -885,7 +896,7 @@ import (
 
     "go.mongodb.org/mongo-driver/v2/mongo"
     "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {
@@ -930,8 +941,8 @@ import (
 
     "go.mongodb.org/mongo-driver/v2/mongo"
     "github.com/cloudresty/emit"
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
 )
 
 type User struct {
@@ -1051,7 +1062,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 type User struct {
@@ -1104,7 +1115,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 type Product struct {
@@ -1162,7 +1173,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
     "go.mongodb.org/mongo-driver/v2/bson/primitive"
 )
 
@@ -1236,7 +1247,7 @@ import (
     "fmt"
     "os"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 type AnalyticsEvent struct {
@@ -1295,7 +1306,7 @@ import (
     "context"
     "fmt"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
     "go.mongodb.org/mongo-driver/v2/bson/primitive"
 )
 
@@ -1379,9 +1390,9 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
 )
 
 func main() {
@@ -1431,9 +1442,9 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
-    "github.com/cloudresty/go-mongodb/update"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
+    "github.com/cloudresty/go-mongodb/v2/update"
     "go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -1486,7 +1497,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
     "go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -1532,8 +1543,8 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/go-mongodb"
-    "github.com/cloudresty/go-mongodb/filter"
+    "github.com/cloudresty/go-mongodb/v2"
+    "github.com/cloudresty/go-mongodb/v2/filter"
     "go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -1596,7 +1607,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {
@@ -1653,7 +1664,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {
@@ -1703,7 +1714,7 @@ import (
     "log"
     "time"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
     "go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -1774,7 +1785,7 @@ import (
     "log"
     "time"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {
@@ -1837,7 +1848,7 @@ import (
     "log"
     "time"
 
-    "github.com/cloudresty/go-mongodb"
+    "github.com/cloudresty/go-mongodb/v2"
 )
 
 func main() {

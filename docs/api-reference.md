@@ -159,6 +159,19 @@ type Logger interface {
 | `collection.DeleteOne(ctx, filter) (*DeleteResult, error)` | Delete a single document |
 | `collection.DeleteMany(ctx, filter) (*DeleteResult, error)` | Delete multiple documents |
 | `collection.CountDocuments(ctx, filter) (int64, error)` | Count documents matching filter |
+| `collection.BulkWrite(ctx, models, opts...) (*BulkWriteResult, error)` | Execute mixed write operations (insert/update/replace/delete) in a single round-trip |
+
+&nbsp;
+
+### ID-Based Convenience Operations
+
+These methods provide idiomatic Go shorthand for the most common `_id`-based operations, eliminating the need to build a filter manually:
+
+| Function | Description |
+| :--- | :--- |
+| `collection.FindByID(ctx, id) *FindOneResult` | Find a single document by its `_id` field |
+| `collection.UpdateByID(ctx, id, update) (*UpdateResult, error)` | Update a single document by its `_id` field |
+| `collection.DeleteByID(ctx, id) (*DeleteResult, error)` | Delete a single document by its `_id` field |
 
 &nbsp;
 
@@ -652,6 +665,31 @@ type IndexModel struct {
 | Type | Description |
 | :--- | :--- |
 | `DeleteResult` | Result of delete operations |
+
+&nbsp;
+
+🔝 [back to top](#api-reference)
+
+&nbsp;
+
+### Bulk Write Results
+
+| Type | Description |
+| :--- | :--- |
+| `BulkWriteResult` | Result of a `BulkWrite` operation. Includes per-operation counts, `UpsertedIDs` (from the driver), and a library-specific `InsertedIDs` map that tracks the ULIDs generated for `InsertOneModel` documents indexed by their position in the models slice. |
+
+```go
+type BulkWriteResult struct {
+    InsertedCount int64         // Number of documents inserted
+    MatchedCount  int64         // Number of documents matched by update/replace filters
+    ModifiedCount int64         // Number of documents modified
+    DeletedCount  int64         // Number of documents deleted
+    UpsertedCount int64         // Number of documents upserted
+    UpsertedIDs   map[int64]any // Model index → upserted document ID
+    InsertedIDs   map[int64]any // Model index → inserted ULID (library-generated)
+    Acknowledged  bool          // Whether the write concern was acknowledged
+}
+```
 
 &nbsp;
 

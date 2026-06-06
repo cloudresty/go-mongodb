@@ -156,7 +156,7 @@ func hasID(document any) (bool, any) {
 // Uses a type cache to avoid repeated reflection on the same struct type.
 func hasIDReflect(document any) (bool, any) {
 	v := reflect.ValueOf(document)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return false, nil
 		}
@@ -249,7 +249,7 @@ func inspectStruct(document any) *inspectResult {
 	result := &inspectResult{}
 
 	v := reflect.ValueOf(document)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		result.isPtr = true
 		if v.IsNil() {
 			return result
@@ -1612,4 +1612,100 @@ func (col *Collection) UpdateByID(ctx context.Context, id any, updateBuilder *up
 // This is a convenience method that works with any ID type (ULID string, ObjectID, etc.).
 func (col *Collection) DeleteByID(ctx context.Context, id any) (*DeleteResult, error) {
 	return col.DeleteOne(ctx, filter.Eq("_id", id))
+}
+
+// =============================================================================
+// BulkWrite
+// =============================================================================
+
+// BulkWrite executes a batch of write operations (insert, update, replace, delete) in a single
+// round-trip to the server. This is the most efficient way to perform multiple writes.
+//
+// When IDMode is IDModeULID (the default), ULID IDs are automatically injected into every
+// InsertOneModel document that does not already carry a non-zero _id, applying the same
+// zero-allocation injection and type-safety checks used by InsertOne and InsertMany.
+//
+// The opts parameter accepts the driver's options.BulkWriteOptions, giving full control over
+// ordered vs. unordered execution, bypass document validation, etc.
+//
+// Example:
+//
+//	result, err := col.BulkWrite(ctx, []mongo.WriteModel{
+//	    mongo.NewInsertOneModel().SetDocument(bson.M{"name": "Alice"}),
+//	    mongo.NewUpdateOneModel().
+//	        SetFilter(filter.Eq("name", "Bob").Build()).
+//	        SetUpdate(update.New().Set("status", "active").Build()),
+//	    mongo.NewDeleteOneModel().SetFilter(filter.Eq("name", "Charlie").Build()),
+//	})
+func (col *Collection) BulkWrite(ctx context.Context, models []mongo.WriteModel, opts ...options.Lister[options.BulkWriteOptions]) (*BulkWriteResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	if len(models) == 0 {
+		return &BulkWriteResult{
+			Acknowledged: true,
+			UpsertedIDs:  make(map[int64]any),
+			InsertedIDs:  make(map[int64]any),
+		}, nil
+	}
+
+	// Track inserted IDs by model index (for ULID reporting)
+	insertedIDs := make(map[int64]any)
+
+	// When using IDModeULID, inject ULIDs into InsertOneModel documents that lack an _id.
+	if col.client.config.IDMode == IDModeULID {
+		for i, model := range models {
+			iom, ok := model.(*mongo.InsertOneModel)
+			if !ok || iom.Document == nil {
+				continue
+			}
+
+			// Reuse the same preparation logic used by InsertOne / InsertMany.
+			prepared, err := col.prepareDocumentForInsert(iom.Document)
+			if err != nil {
+				return nil, fmt.Errorf("BulkWrite: model[%d] ULID injection failed: %w", i, err)
+			}
+
+			// Update the model's document in-place.
+			iom.Document = prepared
+
+			// Record the generated ID for the result.
+			if _, id := hasID(prepared); id != nil {
+				insertedIDs[int64(i)] = id
+			}
+		}
+	}
+
+	result, err := col.collection.BulkWrite(ctx, models, opts...)
+	if err != nil {
+		col.client.incrementFailureCount()
+		col.client.config.Logger.Error("BulkWrite failed",
+			"error", err.Error(),
+			"collection", col.name,
+			"models", len(models))
+		return nil, err
+	}
+
+	col.client.incrementOperationCount()
+	col.client.config.Logger.Debug("BulkWrite completed",
+		"collection", col.name,
+		"inserted", result.InsertedCount,
+		"matched", result.MatchedCount,
+		"modified", result.ModifiedCount,
+		"deleted", result.DeletedCount,
+		"upserted", result.UpsertedCount)
+
+	return &BulkWriteResult{
+		InsertedCount: result.InsertedCount,
+		MatchedCount:  result.MatchedCount,
+		ModifiedCount: result.ModifiedCount,
+		DeletedCount:  result.DeletedCount,
+		UpsertedCount: result.UpsertedCount,
+		UpsertedIDs:   result.UpsertedIDs,
+		InsertedIDs:   insertedIDs,
+		Acknowledged:  result.Acknowledged,
+	}, nil
 }

@@ -500,21 +500,59 @@ if err != nil {
 ### Bulk Operations
 
 ```go
-// Efficient batch operations
+import (
+    "go.mongodb.org/mongo-driver/v2/mongo"
+    "go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+// ── InsertMany: efficient batch inserts ──────────────────────────────────────
 documents := []User{
     {ID: mongoid.NewULID(), Name: "Alice", Email: "alice@example.com"},
     {ID: mongoid.NewULID(), Name: "Bob", Email: "bob@example.com"},
     {ID: mongoid.NewULID(), Name: "Charlie", Email: "charlie@example.com"},
 }
 
-// Use InsertMany for efficient bulk inserts
 result, err := users.InsertMany(ctx, documents)
 if err != nil {
     log.Printf("Bulk insert failed: %v", err)
     return
 }
-
 log.Printf("Inserted %d documents", len(result.InsertedIDs))
+
+// ── BulkWrite: mixed operations in a single round-trip ──────────────────────
+// ULIDs are auto-injected into InsertOneModel documents (same as InsertOne/InsertMany).
+bulkResult, err := users.BulkWrite(ctx, []mongo.WriteModel{
+    // Insert new documents — ULIDs generated automatically
+    mongo.NewInsertOneModel().SetDocument(User{Name: "Dave", Email: "dave@example.com"}),
+
+    // Update existing documents using the type-safe builders
+    mongo.NewUpdateOneModel().
+        SetFilter(filter.Eq("email", "alice@example.com")).
+        SetUpdate(update.Set("active", true)),
+
+    // Upsert: insert if not found, skip if exists
+    mongo.NewUpdateOneModel().
+        SetFilter(filter.Eq("email", "eve@example.com")).
+        SetUpdate(update.Set("name", "Eve").Set("active", true)).
+        SetUpsert(true),
+
+    // Delete stale records
+    mongo.NewDeleteOneModel().
+        SetFilter(filter.Eq("email", "charlie@example.com")),
+}, options.BulkWrite().SetOrdered(true))
+if err != nil {
+    log.Printf("BulkWrite failed: %v", err)
+    return
+}
+
+log.Printf("BulkWrite — inserted: %d, modified: %d, deleted: %d, upserted: %d",
+    bulkResult.InsertedCount, bulkResult.ModifiedCount,
+    bulkResult.DeletedCount, bulkResult.UpsertedCount)
+
+// InsertedIDs carries the library-generated ULIDs keyed by model position.
+for idx, id := range bulkResult.InsertedIDs {
+    log.Printf("  model[%d] → %v", idx, id)
+}
 ```
 
 &nbsp;

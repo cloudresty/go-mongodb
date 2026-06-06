@@ -203,6 +203,27 @@ type DeleteResult struct {
 	DeletedCount int64 `json:"deleted_count" bson:"deleted_count"`
 }
 
+// BulkWriteResult represents the result of a BulkWrite operation
+type BulkWriteResult struct {
+	// InsertedCount is the number of documents inserted.
+	InsertedCount int64 `json:"inserted_count" bson:"inserted_count"`
+	// MatchedCount is the number of documents matched by update/replace filters.
+	MatchedCount int64 `json:"matched_count" bson:"matched_count"`
+	// ModifiedCount is the number of documents modified by update/replace operations.
+	ModifiedCount int64 `json:"modified_count" bson:"modified_count"`
+	// DeletedCount is the number of documents deleted.
+	DeletedCount int64 `json:"deleted_count" bson:"deleted_count"`
+	// UpsertedCount is the number of documents upserted.
+	UpsertedCount int64 `json:"upserted_count" bson:"upserted_count"`
+	// UpsertedIDs maps the index of each upserted model to the ID of the upserted document.
+	UpsertedIDs map[int64]any `json:"upserted_ids,omitempty" bson:"upserted_ids,omitempty"`
+	// InsertedIDs maps the index of each InsertOneModel to the ID of the inserted document
+	// (including ULID-generated IDs for insert models).
+	InsertedIDs map[int64]any `json:"inserted_ids,omitempty" bson:"inserted_ids,omitempty"`
+	// Acknowledged indicates whether the write concern was acknowledged.
+	Acknowledged bool `json:"acknowledged" bson:"acknowledged"`
+}
+
 // QueryOptions provides options for query operations
 type QueryOptions struct {
 	Sort       bson.D

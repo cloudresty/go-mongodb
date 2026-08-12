@@ -11,9 +11,7 @@ import (
 )
 
 func setupTestClientForEnhanced(t *testing.T) *Client {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -451,9 +449,7 @@ func TestQueryOptionsEmptyValues(t *testing.T) {
 }
 
 func TestUpsertByFieldTimestampConflict(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client := setupTestClientForEnhanced(t)
 	defer func() {
@@ -537,9 +533,7 @@ func TestUpsertByFieldTimestampConflict(t *testing.T) {
 }
 
 func TestUpsertByFieldMapTimestampConflict(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client := setupTestClientForEnhanced(t)
 	defer func() {

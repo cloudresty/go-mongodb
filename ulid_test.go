@@ -12,9 +12,7 @@ import (
 
 // TestULIDDocumentGeneration tests that documents are enhanced with ULID
 func TestULIDDocumentGeneration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -81,9 +79,7 @@ func TestULIDDocumentGeneration(t *testing.T) {
 
 // TestULIDUniqueness tests that multiple ULIDs are unique
 func TestULIDUniqueness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -151,9 +147,7 @@ func TestULIDUniqueness(t *testing.T) {
 
 // TestULIDTemporalOrdering tests that ULIDs generated in sequence are temporally ordered
 func TestULIDTemporalOrdering(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -228,9 +222,7 @@ func TestULIDTemporalOrdering(t *testing.T) {
 
 // TestFindByULID tests the FindByULID helper method
 func TestFindByULID(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -287,9 +279,7 @@ func TestFindByULID(t *testing.T) {
 
 // TestULIDDocumentFormatting tests that ULID formatting works properly
 func TestULIDDocumentFormatting(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {

@@ -15,9 +15,7 @@ import (
 
 func TestClientCreation(t *testing.T) {
 	// Skip if no MongoDB available
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -34,9 +32,7 @@ func TestClientCreation(t *testing.T) {
 }
 
 func TestDatabaseCreation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -53,9 +49,7 @@ func TestDatabaseCreation(t *testing.T) {
 }
 
 func TestCollectionOperations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -124,9 +118,7 @@ func TestCollectionOperations(t *testing.T) {
 }
 
 func TestIndexOperations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -167,9 +159,7 @@ func TestIndexOperations(t *testing.T) {
 }
 
 func TestHealthCheck(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -204,9 +194,7 @@ func TestHealthCheck(t *testing.T) {
 }
 
 func TestTransactionOperations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -244,9 +232,7 @@ func TestTransactionOperations(t *testing.T) {
 }
 
 func TestBulkOperations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -286,9 +272,7 @@ func TestBulkOperations(t *testing.T) {
 }
 
 func TestShutdownManagerNewInterface(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	// Test new shutdown manager with ShutdownConfig
 	config := &ShutdownConfig{
@@ -563,9 +547,7 @@ func TestIsNotFoundError(t *testing.T) {
 }
 
 func TestIsNotFoundErrorIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -711,9 +693,7 @@ func TestDirectConnectionEnvironmentVariableWithAuth(t *testing.T) {
 // FindOneAnd* tests
 
 func TestFindOneAndUpdate(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -776,9 +756,7 @@ func TestFindOneAndUpdate(t *testing.T) {
 }
 
 func TestFindOneAndUpdateAtomicCounter(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -846,9 +824,7 @@ func TestFindOneAndUpdateAtomicCounter(t *testing.T) {
 }
 
 func TestFindOneAndUpdateReturnBefore(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -907,9 +883,7 @@ func TestFindOneAndUpdateReturnBefore(t *testing.T) {
 }
 
 func TestFindOneAndReplace(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -971,9 +945,7 @@ func TestFindOneAndReplace(t *testing.T) {
 }
 
 func TestFindOneAndDelete(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {
@@ -1040,9 +1012,7 @@ func TestFindOneAndDelete(t *testing.T) {
 }
 
 func TestFindOneAndUpdateWithSort(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	client, err := NewClient(FromEnv())
 	if err != nil {

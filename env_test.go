@@ -7,9 +7,7 @@ import (
 )
 
 func TestLoadFromEnv(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	// Save current environment variables that we'll modify
 	envVars := map[string]string{
@@ -78,9 +76,7 @@ func TestLoadFromEnv(t *testing.T) {
 }
 
 func TestLoadFromEnvWithPrefix(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	// Set test environment variables with custom prefix
 	envVars := map[string]string{
@@ -244,9 +240,7 @@ func TestConfigBuildConnectionURI(t *testing.T) {
 }
 
 func TestEnvDefaults(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
+	skipWithoutMongo(t)
 
 	// Save current environment variables
 	envVarsToSave := []string{

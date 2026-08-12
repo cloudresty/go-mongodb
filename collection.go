@@ -1182,60 +1182,288 @@ func (col *Collection) Watch(ctx context.Context, pipeline any, opts ...options.
 	return stream, nil
 }
 
-// Convenience Upsert Methods
+// Match-or-insert methods
+//
+// Three methods, because "upsert" is three different operations and the
+// difference between them is not cosmetic:
+//
+//	InsertIfAbsentByField   inserts, and leaves an existing document untouched
+//	SetOrInsertByField      inserts, or MERGES the document's fields into an existing one
+//	ReplaceOrInsertByField  inserts, or REPLACES an existing document wholesale
+//
+// Pick by what should happen to a document that already exists. Merge is
+// correct when several writers own different fields of the same document;
+// replace is correct when this writer owns the whole document, and it is the
+// one that leaves no stale fields behind.
+//
+// The older UpsertByField family further down is deprecated: it named all
+// three of these "upsert" and silently performed the first.
 
-// UpsertByField performs an atomic upsert based on a specific field match
-// This is a convenience method that combines filter creation, update building, and upsert execution
-func (col *Collection) UpsertByField(ctx context.Context, field string, value any, document any) (*UpdateResult, error) {
+// InsertIfAbsentByField inserts document when no document matches field == value,
+// and leaves an existing match COMPLETELY UNTOUCHED.
+//
+// This is the honest name for what UpsertByField has always done. Use it for
+// first-write-wins semantics such as de-duplicating collected records.
+//
+// A call that matched an existing document reports MatchedCount 1 and
+// ModifiedCount 0 — see UpdateResult.MatchedWithoutModifying, which is the
+// signature of "nothing was written" on this path.
+func (col *Collection) InsertIfAbsentByField(ctx context.Context, field string, value any, document any) (*UpdateResult, error) {
 	if ctx == nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 	}
 
-	// Create filter for the specified field
-	filterBuilder := filter.Eq(field, value)
+	updateBuilder, err := insertIfAbsentUpdate(document)
+	if err != nil {
+		return nil, err
+	}
 
-	// Create update using $setOnInsert for the entire document
+	return col.UpdateOne(ctx, filter.Eq(field, value), updateBuilder,
+		options.UpdateOne().SetUpsert(true))
+}
+
+// insertIfAbsentUpdate builds the update document behind InsertIfAbsentByField,
+// and behind the deprecated UpsertByField that delegates to it. Separated from
+// the method so a test can pin that it contains $setOnInsert and NOTHING else —
+// media-agenda-collector depends on that exact behaviour.
+func insertIfAbsentUpdate(document any) (*update.Builder, error) {
 	updateBuilder, err := update.New().SetOnInsertStruct(document)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create update builder: %w", err)
 	}
-
-	// Enable upsert
-	opts := options.UpdateOne().SetUpsert(true)
-
-	return col.UpdateOne(ctx, filterBuilder, updateBuilder, opts)
+	return updateBuilder, nil
 }
 
-// UpsertByFieldMap performs an atomic upsert based on a specific field match using a map for the document
-func (col *Collection) UpsertByFieldMap(ctx context.Context, field string, value any, fields map[string]any) (*UpdateResult, error) {
+// InsertIfAbsentByFieldMap is InsertIfAbsentByField for a map of fields.
+func (col *Collection) InsertIfAbsentByFieldMap(ctx context.Context, field string, value any, fields map[string]any) (*UpdateResult, error) {
 	if ctx == nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 	}
 
-	// Create filter for the specified field
-	filterBuilder := filter.Eq(field, value)
-
-	// Create update using $setOnInsert for the map fields
-	updateBuilder := update.New().SetOnInsertMap(fields)
-
-	// Enable upsert
-	opts := options.UpdateOne().SetUpsert(true)
-
-	return col.UpdateOne(ctx, filterBuilder, updateBuilder, opts)
+	return col.UpdateOne(ctx, filter.Eq(field, value), update.New().SetOnInsertMap(fields),
+		options.UpdateOne().SetUpsert(true))
 }
 
-// UpsertOptions provides configuration for upsert operations
+// SetOrInsertByField inserts document when nothing matches field == value, and
+// otherwise MERGES the document's fields into the existing document with $set.
+//
+// Merge, not replace: fields present in the stored document but absent from
+// document are left as they are. That is the right behaviour when a document is
+// partitioned between writers — one service owning the root fields while another
+// owns a sub-document — and the wrong one when this writer owns the whole
+// document and expects removed fields to disappear. Use ReplaceOrInsertByField
+// for that.
+//
+// The _id is handled rather than merged. MongoDB rejects any update that would
+// change _id, so a document whose _id differs from the stored one (very commonly
+// a zero value, when the caller keys on some other field) would otherwise fail
+// the whole write with an immutable-field error. Instead _id is excluded from
+// the $set and, when it is set to something meaningful, applied with
+// $setOnInsert so that a genuine insert still lands under the caller's chosen
+// identifier.
+func (col *Collection) SetOrInsertByField(ctx context.Context, field string, value any, document any) (*UpdateResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	updateBuilder, err := setOrInsertUpdate(document)
+	if err != nil {
+		return nil, err
+	}
+
+	return col.UpdateOne(ctx, filter.Eq(field, value), updateBuilder,
+		options.UpdateOne().SetUpsert(true))
+}
+
+// setOrInsertUpdate builds the update document behind SetOrInsertByField.
+// Separated from the method so the $set / $setOnInsert split can be asserted
+// without a live server — that split is the whole correctness of this path.
+func setOrInsertUpdate(document any) (*update.Builder, error) {
+	fields, id, err := splitDocumentID(document)
+	if err != nil {
+		return nil, err
+	}
+	return setOrInsertUpdateFrom(fields, id)
+}
+
+func setOrInsertUpdateFrom(fields map[string]any, id any) (*update.Builder, error) {
+	if len(fields) == 0 && id == nil {
+		return nil, fmt.Errorf("document has no fields to set")
+	}
+
+	updateBuilder := update.New()
+	if len(fields) > 0 {
+		updateBuilder = updateBuilder.SetMap(fields)
+	}
+	if id != nil {
+		updateBuilder = updateBuilder.SetOnInsert("_id", id)
+	}
+	return updateBuilder, nil
+}
+
+// SetOrInsertByFieldMap is SetOrInsertByField for a map of fields.
+func (col *Collection) SetOrInsertByFieldMap(ctx context.Context, field string, value any, fields map[string]any) (*UpdateResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+	updateBuilder, err := setOrInsertUpdateFromMap(fields)
+	if err != nil {
+		return nil, err
+	}
+
+	return col.UpdateOne(ctx, filter.Eq(field, value), updateBuilder,
+		options.UpdateOne().SetUpsert(true))
+}
+
+func setOrInsertUpdateFromMap(fields map[string]any) (*update.Builder, error) {
+	merged := make(map[string]any, len(fields))
+	for k, v := range fields {
+		merged[k] = v
+	}
+
+	id, present := merged["_id"]
+	delete(merged, "_id")
+	if !present || isZeroID(id) {
+		id = nil
+	}
+
+	return setOrInsertUpdateFrom(merged, id)
+}
+
+// ReplaceOrInsertByField inserts document when nothing matches field == value,
+// and otherwise REPLACES the matched document wholesale.
+//
+// This is what most callers mean by "upsert this document": afterwards the
+// stored document is exactly document, with no fields surviving from whatever
+// was there before. Prefer it whenever this writer owns the entire document —
+// a $set merge would leave fields that have since been removed from the struct
+// lying in the collection indefinitely.
+//
+// Do NOT use it on a document shared between writers; it discards their fields.
+func (col *Collection) ReplaceOrInsertByField(ctx context.Context, field string, value any, document any) (*UpdateResult, error) {
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+	}
+
+	return col.ReplaceOne(ctx, filter.Eq(field, value), document,
+		options.Replace().SetUpsert(true))
+}
+
+// splitDocumentID marshals document to BSON and separates a meaningful _id from
+// the rest of the fields, so the caller can $set the fields without ever
+// attempting to $set _id. A missing or zero _id is reported as nil.
+func splitDocumentID(document any) (map[string]any, any, error) {
+	bytes, err := bson.Marshal(document)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal document: %w", err)
+	}
+
+	var doc bson.M
+	if err := bson.Unmarshal(bytes, &doc); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal document: %w", err)
+	}
+
+	id, present := doc["_id"]
+	delete(doc, "_id")
+
+	fields := make(map[string]any, len(doc))
+	for k, v := range doc {
+		fields[k] = v
+	}
+
+	if !present || isZeroID(id) {
+		return fields, nil, nil
+	}
+	return fields, id, nil
+}
+
+// isZeroID reports whether an _id value carries no information, and so must not
+// be written on insert. A zero _id in a struct means "the caller did not choose
+// one", not "store an empty identifier".
+func isZeroID(id any) bool {
+	switch v := id.(type) {
+	case nil:
+		return true
+	case string:
+		return v == ""
+	case bson.ObjectID:
+		return v.IsZero()
+	}
+
+	rv := reflect.ValueOf(id)
+	if !rv.IsValid() {
+		return true
+	}
+	return rv.IsZero()
+}
+
+// Deprecated upsert methods
+//
+// All four identifiers below are retained with EXACTLY their original behaviour
+// and will not be removed within v2. They are deprecated because their names
+// describe an operation none of them reliably performs.
+
+// UpsertByField inserts document when no document matches field == value.
+//
+// Deprecated: despite the name, this NEVER MODIFIES AN EXISTING DOCUMENT. It
+// builds its update with $setOnInsert, so a call that matches an existing
+// document returns a nil error and a successful-looking *UpdateResult while
+// writing nothing at all. That silence froze two state machines in production
+// before anyone noticed, because every log line said the write had succeeded.
+//
+// Use InsertIfAbsentByField for exactly this behaviour under a name that admits
+// it, SetOrInsertByField to merge into an existing document, or
+// ReplaceOrInsertByField to replace one.
+func (col *Collection) UpsertByField(ctx context.Context, field string, value any, document any) (*UpdateResult, error) {
+	return col.InsertIfAbsentByField(ctx, field, value, document)
+}
+
+// UpsertByFieldMap inserts fields when no document matches field == value.
+//
+// Deprecated: like UpsertByField, this never modifies an existing document — it
+// uses $setOnInsert and reports success either way. Use InsertIfAbsentByFieldMap
+// for the same behaviour honestly named, or SetOrInsertByFieldMap to merge.
+func (col *Collection) UpsertByFieldMap(ctx context.Context, field string, value any, fields map[string]any) (*UpdateResult, error) {
+	return col.InsertIfAbsentByFieldMap(ctx, field, value, fields)
+}
+
+// UpsertOptions configures UpsertByFieldWithOptions.
+//
+// Deprecated: this type carries a trap that cannot be fixed without a breaking
+// change. Passing nil selects OnlyInsert: true, while passing the zero value
+// &UpsertOptions{} selects OnlyInsert: false — nil and the zero value do
+// OPPOSITE things, inverting the usual Go convention. Use the
+// InsertIfAbsentByField / SetOrInsertByField / ReplaceOrInsertByField family,
+// where the behaviour is chosen by the method name and there is nothing to
+// misconfigure.
 type UpsertOptions struct {
 	// OnlyInsert when true, ensures existing documents are never modified
 	// This is the default behavior when using $setOnInsert
 	OnlyInsert bool
 }
 
-// UpsertByFieldWithOptions performs an atomic upsert with additional configuration options
+// UpsertByFieldWithOptions inserts document, and updates an existing match only
+// when upsertOpts.OnlyInsert is false.
+//
+// Deprecated: a nil upsertOpts means OnlyInsert: true and so never modifies an
+// existing document, whereas &UpsertOptions{} means OnlyInsert: false and does.
+// Callers reading the call site cannot tell these apart at a glance, which is
+// the defect this whole family is deprecated for.
+//
+// Replace OnlyInsert: true with InsertIfAbsentByField, and OnlyInsert: false
+// with SetOrInsertByField — which additionally keeps _id out of the $set, an
+// immutable-field error this method will raise whenever the document's _id
+// differs from the stored one.
 func (col *Collection) UpsertByFieldWithOptions(ctx context.Context, field string, value any, document any, upsertOpts *UpsertOptions) (*UpdateResult, error) {
 	if ctx == nil {
 		var cancel context.CancelFunc

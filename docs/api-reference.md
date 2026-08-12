@@ -212,15 +212,60 @@ These methods provide idiomatic Go shorthand for the most common `_id`-based ope
 
 &nbsp;
 
-### Atomic Upsert Operations
+### Match-or-Insert Operations
 
-| Function | Description |
+Choose by what should happen to a document that **already exists**.
+
+| Function | An existing document is… |
 | :--- | :--- |
-| `collection.UpsertByField(ctx, field, value, document) (*UpdateResult, error)` | Atomic upsert using $setOnInsert for struct |
-| `collection.UpsertByFieldMap(ctx, field, value, fields) (*UpdateResult, error)` | Atomic upsert using $setOnInsert for map |
-| `collection.UpsertByFieldWithOptions(ctx, field, value, document, opts) (*UpdateResult, error)` | Atomic upsert with configuration options |
+| `collection.InsertIfAbsentByField(ctx, field, value, document) (*UpdateResult, error)` | left untouched (`$setOnInsert`) |
+| `collection.InsertIfAbsentByFieldMap(ctx, field, value, fields) (*UpdateResult, error)` | left untouched (`$setOnInsert`) |
+| `collection.SetOrInsertByField(ctx, field, value, document) (*UpdateResult, error)` | **merged** into (`$set`) |
+| `collection.SetOrInsertByFieldMap(ctx, field, value, fields) (*UpdateResult, error)` | **merged** into (`$set`) |
+| `collection.ReplaceOrInsertByField(ctx, field, value, document) (*UpdateResult, error)` | **replaced** wholesale |
 
-**Note**: All upsert methods use `$setOnInsert` by default, ensuring existing documents are never modified and preventing race conditions.
+`SetOrInsert*` merges: fields present in the stored document but absent from
+yours survive. That is what you want when a document is partitioned between
+writers, and not what you want when you own the whole document — reach for
+`ReplaceOrInsert*` there, or fields you have removed linger indefinitely.
+
+`SetOrInsert*` deliberately keeps `_id` out of the `$set` and applies it with
+`$setOnInsert` instead. MongoDB rejects any update that would change `_id`, so
+merging a document whose `_id` differs from the stored one — very commonly a zero
+value, when you key on another field — would otherwise fail the entire write.
+
+#### Reading the result
+
+| Function | Meaning |
+| :--- | :--- |
+| `result.DidInsert() bool` | a new document was created |
+| `result.DidUpdate() bool` | an existing document changed |
+| `result.MatchedWithoutModifying() bool` | a document matched and **nothing was written** |
+
+`MatchedWithoutModifying` is the ordinary outcome of `InsertIfAbsent*` finding an
+existing document — a success, when you are de-duplicating. Assert on it wherever
+a write is *expected* to change something.
+
+#### Deprecated: the `UpsertByField` family
+
+`UpsertByField`, `UpsertByFieldMap`, `UpsertByFieldWithOptions` and
+`UpsertOptions` remain, unchanged, and will not be removed within v2.
+
+They are deprecated because **`UpsertByField` never modifies an existing
+document**. It builds a `$setOnInsert` update, so a call that matches returns a
+nil error and a successful-looking `*UpdateResult` having written nothing at all.
+There is no failure signal.
+
+`UpsertOptions` carries a second trap: passing `nil` selects `OnlyInsert: true`,
+while passing the zero value `&UpsertOptions{}` selects `OnlyInsert: false`. `nil`
+and the zero value do **opposite** things.
+
+| Replace | With |
+| :--- | :--- |
+| `UpsertByField` / `UpsertByFieldMap` | `InsertIfAbsentByField` / `InsertIfAbsentByFieldMap` |
+| `UpsertByFieldWithOptions(…, &UpsertOptions{OnlyInsert: true})` | `InsertIfAbsentByField` |
+| `UpsertByFieldWithOptions(…, &UpsertOptions{OnlyInsert: false})` | `SetOrInsertByField` |
+| `UpsertByFieldWithOptions(…, nil)` | `InsertIfAbsentByField` |
 
 &nbsp;
 

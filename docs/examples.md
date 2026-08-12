@@ -597,15 +597,21 @@ func convenienceUpsertExample() {
         UpdatedAt: time.Now(),
     }
 
-    // Method 1: UpsertByField with struct (NEW)
-    result1, err := collection.UpsertByField(ctx, "url", event.URL, event)
+    // De-duplicating: keep the first version we collected, ignore re-collections.
+    // An existing document is left exactly as it is.
+    result, err := collection.InsertIfAbsentByField(ctx, "url", event.URL, event)
     if err != nil {
-        log.Printf("Upsert failed: %v", err)
+        log.Printf("Write failed: %v", err)
         return
     }
-    log.Printf("Upserted: %d, Matched: %d", result1.UpsertedCount, result1.MatchedCount)
+    switch {
+    case result.DidInsert():
+        log.Printf("Collected a new event: %v", result.UpsertedID)
+    case result.MatchedWithoutModifying():
+        log.Printf("Already collected, left untouched") // expected on this path
+    }
 
-    // Method 2: UpsertByFieldMap (NEW)
+    // Same thing from a map of fields.
     fields := map[string]any{
         "_id":        event.ID,
         "media_id":   event.MediaID,
@@ -614,14 +620,16 @@ func convenienceUpsertExample() {
         "created_at": event.CreatedAt,
         "updated_at": event.UpdatedAt,
     }
-    result2, err := collection.UpsertByFieldMap(ctx, "url", event.URL, fields)
+    _, err = collection.InsertIfAbsentByFieldMap(ctx, "url", event.URL, fields)
 
-    // Method 3: UpsertByFieldWithOptions for advanced control (NEW)
-    upsertOpts := &mongodb.UpsertOptions{
-        OnlyInsert:     true,  // Default: only insert, never modify existing
-        SkipTimestamps: false, // Default: add timestamps
-    }
-    result3, err := collection.UpsertByFieldWithOptions(ctx, "url", event.URL, event, upsertOpts)
+    // Keeping a record CURRENT instead: merge the new values over whatever is
+    // stored, inserting if it is not there yet. Fields held by other writers
+    // survive; _id is handled for you.
+    _, err = collection.SetOrInsertByField(ctx, "url", event.URL, event)
+
+    // Or, when this writer owns the whole document and stale fields must not
+    // linger, replace it outright.
+    _, err = collection.ReplaceOrInsertByField(ctx, "url", event.URL, event)
 }
 ```
 
@@ -656,19 +664,21 @@ func raceConditionExample() {
         UpdatedAt: time.Now(),
     }
 
-    // First upsert - will create the document
-    result1, err := collection.UpsertByField(ctx, "url", event.URL, event)
-    log.Printf("First upsert: UpsertedCount=%d, MatchedCount=%d",
-               result1.UpsertedCount, result1.MatchedCount)
+    // First write - creates the document
+    result1, err := collection.InsertIfAbsentByField(ctx, "url", event.URL, event)
+    log.Printf("First write:  inserted=%v", result1.DidInsert()) // true
 
-    // Second upsert with same URL - will match but not modify
-    result2, err := collection.UpsertByField(ctx, "url", event.URL, event)
-    log.Printf("Second upsert: UpsertedCount=%d, MatchedCount=%d",
-               result2.UpsertedCount, result2.MatchedCount)
+    // Second write, same URL - matches, and deliberately changes nothing
+    result2, err := collection.InsertIfAbsentByField(ctx, "url", event.URL, event)
+    log.Printf("Second write: inserted=%v, untouched=%v",
+               result2.DidInsert(),                  // false
+               result2.MatchedWithoutModifying())    // true
 
-    // The document is only created once, never modified
-    // UpsertedCount=1 for first, UpsertedCount=0 for second
-    // This prevents duplicate entries and data corruption
+    // The document is created once and never modified, so concurrent collectors
+    // cannot overwrite each other. MatchedWithoutModifying is the SUCCESS signal
+    // on this path — but it is the same signal you would see if you had wanted an
+    // update and reached for the wrong method, so check it explicitly rather than
+    // assuming a nil error means something was written.
 }
 ```
 

@@ -198,6 +198,34 @@ type UpdateResult struct {
 	UpsertedCount int64 `json:"upserted_count" bson:"upserted_count"`
 }
 
+// DidInsert reports whether the operation created a new document.
+func (r *UpdateResult) DidInsert() bool {
+	return r != nil && r.UpsertedCount > 0
+}
+
+// DidUpdate reports whether the operation changed an existing document.
+func (r *UpdateResult) DidUpdate() bool {
+	return r != nil && r.ModifiedCount > 0
+}
+
+// MatchedWithoutModifying reports the case that reads as success and writes
+// nothing: a document matched the filter, nothing was inserted, and nothing
+// changed.
+//
+// It is the exact signature of an insert-only write — InsertIfAbsentByField, or
+// the deprecated UpsertByField — landing on a document that already exists. That
+// is the correct, expected outcome when de-duplicating, and a silent data-loss
+// bug when the caller believed it was performing an upsert. The library cannot
+// tell those apart, so it reports the fact rather than guessing: assert on this
+// in a test, or log it, wherever a write is expected to change something.
+//
+// A genuinely idempotent update satisfies it too — re-writing identical values
+// modifies nothing — so read it as "nothing changed", never as "the write
+// failed".
+func (r *UpdateResult) MatchedWithoutModifying() bool {
+	return r != nil && r.MatchedCount > 0 && r.ModifiedCount == 0 && r.UpsertedCount == 0
+}
+
 // DeleteResult represents the result of a delete operation
 type DeleteResult struct {
 	DeletedCount int64 `json:"deleted_count" bson:"deleted_count"`

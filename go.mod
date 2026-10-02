@@ -1,6 +1,6 @@
 module github.com/cloudresty/go-mongodb/v2
 
-go 1.26.0
+go 1.27.1
 
 require (
 	github.com/cloudresty/go-env v1.0.1

@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -802,4 +803,38 @@ func (c *Client) getServerInfo() (serverVersion string, replicaSetName string, i
 	}
 
 	return serverVersion, replicaSetName, isMaster
+}
+
+// isExpectedOpError reports whether err is an EXPECTED, caller-controlled
+// outcome rather than a fault: a duplicate key (E11000, including write
+// exceptions, bulk write exceptions and InsertMany partial failures) or a
+// cancelled context. Callers routinely rely on both (insert-once ledgers, shutdown).
+// context.DeadlineExceeded is deliberately NOT expected: it signals a real problem.
+func isExpectedOpError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return mongo.IsDuplicateKeyError(err) || errors.Is(err, context.Canceled)
+}
+
+// logOpError logs an error that the caller also receives as a return value.
+// Expected outcomes are logged at Debug so the caller, who handles them, does
+// not trigger error-level alerts; everything else is logged at Error.
+func (c *Client) logOpError(msg string, err error, fields ...any) {
+	all := append([]any{"error", err.Error()}, fields...)
+	if isExpectedOpError(err) {
+		c.config.Logger.Debug(msg, all...)
+		return
+	}
+	c.config.Logger.Error(msg, all...)
+}
+
+// countOpFailure increments the failed-operations counter (exported through
+// Stats as OperationsFailed) unless err is an expected outcome, which is a
+// correct answer rather than a failure.
+func (c *Client) countOpFailure(err error) {
+	if isExpectedOpError(err) {
+		return
+	}
+	c.incrementFailureCount()
 }

@@ -77,8 +77,7 @@ func (c *Client) WithTransaction(ctx context.Context, fn func(context.Context) (
 
 	result, err := session.WithTransaction(ctx, callback, opts...)
 	if err != nil {
-		c.config.Logger.Error("Transaction failed",
-			"error", err.Error())
+		c.logOpError("Transaction failed", err)
 		return nil, fmt.Errorf("transaction failed: %w", err)
 	}
 
@@ -142,9 +141,7 @@ func (c *Client) DropDatabase(ctx context.Context) error {
 
 	err := database.Drop(ctx)
 	if err != nil {
-		c.config.Logger.Error("Failed to drop database",
-			"database", c.config.Database,
-			"error", err.Error())
+		c.logOpError("Failed to drop database", err, "database", c.config.Database)
 		return fmt.Errorf("failed to drop database: %w", err)
 	}
 

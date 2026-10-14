@@ -441,9 +441,8 @@ func (col *Collection) InsertOne(ctx context.Context, document any, opts ...opti
 
 	result, err := col.collection.InsertOne(ctx, docToInsert, opts...)
 	if err != nil {
-		col.client.incrementFailureCount()
-		col.client.config.Logger.Error("Failed to insert document",
-			"error", err.Error(),
+		col.client.countOpFailure(err)
+		col.client.logOpError("Failed to insert document", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -493,9 +492,8 @@ func (col *Collection) InsertMany(ctx context.Context, documents []any, opts ...
 
 	result, err := col.collection.InsertMany(ctx, processedDocs, opts...)
 	if err != nil {
-		col.client.incrementFailureCount()
-		col.client.config.Logger.Error("Failed to insert documents",
-			"error", err.Error(),
+		col.client.countOpFailure(err)
+		col.client.logOpError("Failed to insert documents", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -565,8 +563,7 @@ func (col *Collection) Find(ctx context.Context, filterBuilder *filter.Builder, 
 
 	cursor, err := col.collection.Find(ctx, filterDoc, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to find documents",
-			"error", err.Error(),
+		col.client.logOpError("Failed to find documents", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -628,8 +625,7 @@ func (col *Collection) FindWithOptions(ctx context.Context, filterBuilder *filte
 
 	cursor, err := col.collection.Find(ctx, filterDoc, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to find documents with options",
-			"error", err.Error(),
+		col.client.logOpError("Failed to find documents with options", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -757,9 +753,8 @@ func (col *Collection) UpdateOne(ctx context.Context, filterBuilder *filter.Buil
 
 	result, err := col.collection.UpdateOne(ctx, filterDoc, updateDoc, opts...)
 	if err != nil {
-		col.client.incrementFailureCount()
-		col.client.config.Logger.Error("Failed to update document",
-			"error", err.Error(),
+		col.client.countOpFailure(err)
+		col.client.logOpError("Failed to update document", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -802,8 +797,7 @@ func (col *Collection) UpdateMany(ctx context.Context, filterBuilder *filter.Bui
 
 	result, err := col.collection.UpdateMany(ctx, filterDoc, updateDoc, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to update documents",
-			"error", err.Error(),
+		col.client.logOpError("Failed to update documents", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -839,8 +833,7 @@ func (col *Collection) ReplaceOne(ctx context.Context, filterBuilder *filter.Bui
 
 	result, err := col.collection.ReplaceOne(ctx, filterDoc, replacement, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to replace document",
-			"error", err.Error(),
+		col.client.logOpError("Failed to replace document", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -876,9 +869,8 @@ func (col *Collection) DeleteOne(ctx context.Context, filterBuilder *filter.Buil
 
 	result, err := col.collection.DeleteOne(ctx, filterDoc, opts...)
 	if err != nil {
-		col.client.incrementFailureCount()
-		col.client.config.Logger.Error("Failed to delete document",
-			"error", err.Error(),
+		col.client.countOpFailure(err)
+		col.client.logOpError("Failed to delete document", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -909,8 +901,7 @@ func (col *Collection) DeleteMany(ctx context.Context, filterBuilder *filter.Bui
 
 	result, err := col.collection.DeleteMany(ctx, filterDoc, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to delete documents",
-			"error", err.Error(),
+		col.client.logOpError("Failed to delete documents", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -940,8 +931,7 @@ func (col *Collection) CountDocuments(ctx context.Context, filterBuilder *filter
 
 	count, err := col.collection.CountDocuments(ctx, filterDoc, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to count documents",
-			"error", err.Error(),
+		col.client.logOpError("Failed to count documents", err,
 			"collection", col.name)
 		return 0, err
 	}
@@ -969,8 +959,7 @@ func (col *Collection) Distinct(ctx context.Context, fieldName string, filterBui
 
 	result := col.collection.Distinct(ctx, fieldName, filterDoc, opts...)
 	if result.Err() != nil {
-		col.client.config.Logger.Error("Failed to get distinct values",
-			"error", result.Err().Error(),
+		col.client.logOpError("Failed to get distinct values", result.Err(),
 			"collection", col.name,
 			"field", fieldName)
 		return nil, result.Err()
@@ -999,8 +988,7 @@ func (col *Collection) Aggregate(ctx context.Context, pipeline any, opts ...opti
 
 	cursor, err := col.collection.Aggregate(ctx, pipeline, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to aggregate",
-			"error", err.Error(),
+		col.client.logOpError("Failed to aggregate", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -1031,8 +1019,7 @@ func (col *Collection) AggregateWithPipeline(ctx context.Context, pipelineBuilde
 
 	cursor, err := col.collection.Aggregate(ctx, pipelineDoc, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to aggregate with pipeline",
-			"error", err.Error(),
+		col.client.logOpError("Failed to aggregate with pipeline", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -1067,8 +1054,7 @@ func (col *Collection) CreateIndex(ctx context.Context, model IndexModel, opts .
 
 	name, err := col.collection.Indexes().CreateOne(ctx, mongoModel, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to create index",
-			"error", err.Error(),
+		col.client.logOpError("Failed to create index", err,
 			"collection", col.name)
 		return "", err
 	}
@@ -1101,8 +1087,7 @@ func (col *Collection) CreateIndexes(ctx context.Context, models []IndexModel, o
 
 	names, err := col.collection.Indexes().CreateMany(ctx, mongoModels, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to create indexes",
-			"error", err.Error(),
+		col.client.logOpError("Failed to create indexes", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -1124,8 +1109,7 @@ func (col *Collection) DropIndex(ctx context.Context, name string, opts ...optio
 
 	err := col.collection.Indexes().DropOne(ctx, name, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to drop index",
-			"error", err.Error(),
+		col.client.logOpError("Failed to drop index", err,
 			"collection", col.name,
 			"index", name)
 		return err
@@ -1148,8 +1132,7 @@ func (col *Collection) ListIndexes(ctx context.Context, opts ...options.Lister[o
 
 	cursor, err := col.collection.Indexes().List(ctx, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to list indexes",
-			"error", err.Error(),
+		col.client.logOpError("Failed to list indexes", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -1170,8 +1153,7 @@ func (col *Collection) Watch(ctx context.Context, pipeline any, opts ...options.
 
 	stream, err := col.collection.Watch(ctx, pipeline, opts...)
 	if err != nil {
-		col.client.config.Logger.Error("Failed to create change stream",
-			"error", err.Error(),
+		col.client.logOpError("Failed to create change stream", err,
 			"collection", col.name)
 		return nil, err
 	}
@@ -1909,9 +1891,8 @@ func (col *Collection) BulkWrite(ctx context.Context, models []mongo.WriteModel,
 
 	result, err := col.collection.BulkWrite(ctx, models, opts...)
 	if err != nil {
-		col.client.incrementFailureCount()
-		col.client.config.Logger.Error("BulkWrite failed",
-			"error", err.Error(),
+		col.client.countOpFailure(err)
+		col.client.logOpError("BulkWrite failed", err,
 			"collection", col.name,
 			"models", len(models))
 		return nil, err

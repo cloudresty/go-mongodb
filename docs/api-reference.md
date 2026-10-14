@@ -66,6 +66,8 @@ type Logger interface {
 
 **Default behavior**: If no logger is provided via `WithLogger()`, the client uses `NopLogger` (silent - no output).
 
+**Expected outcomes are not errors**: operation failures that are also returned to the caller are logged at `Error`, except duplicate-key errors (E11000) and `context.Canceled`, which callers routinely handle and which are logged at `Debug` and not counted in `OperationsFailed`. `context.DeadlineExceeded` is still logged as an error.
+
 &nbsp;
 
 **Usage patterns**:
